@@ -49,7 +49,7 @@
 (struct 3_RSHFA (src1 imm4 dst) #:transparent)   ;;; src1 >>> imm4 -> dst
 
 ;; STORE
-(struct 3_STB (base src1 imm6) #:transparent)    ;;; src1[7:0] -> MEM[base + SXT(imm6)][7:0]
+(struct 3_STB (base src1 imm6) #:transparent)    ;;; src1[7:0] -> MEM[base + SXT(imm6)]
 (struct 3_STW (base src1 imm6) #:transparent)    ;;; src1 -> MEM[base + (SXT(imm6) << 1)]
 
 ; ----------------------------------------------------------------------------------------------- ;
@@ -141,14 +141,24 @@
     (bvshl vec (bv 1 16))
 )
 
-; mask off bits, leaving only the high 8 bits
+; mask off bits, leaving only the high 8 bits. returns 16-bit vector.
 (define (MASK_HIGH8 vec)
     (bvand vec (bv #b1111111100000000 16))
 )
 
-; mask off bits, leaving only the low 8 bits
+; mask off bits, leaving only the low 8 bits. returns 16-bit vector.
 (define (MASK_LOW8 vec)
     (bvand vec (bv #b0000000011111111 16))
+)
+
+; get the low 8 bits. returns 8-bit vector.
+(define (GET_LOW8 vec)
+    (extract 7 0 vec)
+)
+
+; get the high 8 bits. returns 8-bit vector.
+(define (GET_HIGH8 vec)
+    (extract 15 8 vec)
 )
 
 ; return a 16-length bitvector containing val (for readability later)
@@ -162,6 +172,7 @@
 (define (imm6 val) (bv val 6))
 (define (imm11 val) (bv val 11))
 (define (imm12 val) (bv val 12))
+; no imm16 since that's just an addr in all places used
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
@@ -170,87 +181,116 @@
 ; set up evaluation functions for both LC-3b and RISC-V
 
 (define (eval-lc3b-instr instr state)
-    ; create a new pc val (pc + 4)
-    ; edit it when processing instruction (if the instr alters pc)
-    ; set new pc after
-    (let ((new_pc (bvadd (state PC) (offset 4))))
-        (set-state
-            (destruct instr
-            ;; ARITHMETIC
-                [   (3_ADD src1 src2 dst)
-                    (set-state state dst (bvadd (state src1) (state src2)))   ]
+    (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
+    (set-state ; sets PC to new_pc after current instruction has been run
+    (destruct instr
 
-                [   (3_ADDI src1 imm5 dst)
-                    (set-state state dst (bvadd (state src1) (SXT_16 imm5)))   ]
+    ;; ARITHMETIC
+    [   (3_ADD src1 src2 dst)
+        (set-state state dst (bvadd (state src1) (state src2)))   ]
 
-            ;; BIT MANIPULATION
-                [   (3_AND src1 src2 dst)
-                    (set-state state dst (bvand (state src1) (state src2)))   ]
+    [   (3_ADDI src1 imm5 dst)
+        (set-state state dst (bvadd (state src1) (SXT_16 imm5)))   ]
 
-                [   (3_ANDI src1 imm5 dst)
-                    (set-state state dst (bvand (state src1) (SXT_16 imm5)))   ]
 
-                [   (3_NOT src1 dst)
-                    (set-state state dst (bvnot (state src1)))   ]
+    ;; BIT MANIPULATION
+    [   (3_AND src1 src2 dst)
+        (set-state state dst (bvand (state src1) (state src2)))   ]
 
-                [   (3_XOR src1 src2 dst)
-                    (set-state state dst (bvxor (state src1) (state src2)))   ]
+    [   (3_ANDI src1 imm5 dst)
+        (set-state state dst (bvand (state src1) (SXT_16 imm5)))   ]
 
-                [   (3_XORI src1 imm5 dst)
-                    (set-state state dst (bvxor (state src1) (SXT_16 imm5)))   ]
+    [   (3_NOT src1 dst)
+        (set-state state dst (bvnot (state src1)))   ]
 
-            ;; BRANCH (w/ COND)
-                ;;; (TODO)
+    [   (3_XOR src1 src2 dst)
+        (set-state state dst (bvxor (state src1) (state src2)))   ]
 
-            ;; JUMP
-                [   (3_JMP base)
-                    (set! new_pc (state base))   ]
+    [   (3_XORI src1 imm5 dst)
+        (set-state state dst (bvxor (state src1) (SXT_16 imm5)))   ]
 
-                [   (3_RET _)
-                    (set! new_pc (state x7))   ]
 
-                [   (3_JSR imm11)
-                    (begin
-                        (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))))
-                        (set-state state x7 (bvadd (state PC) (offset 4)))
-                    )   ]
+    ;; BRANCH (w/ COND)
+    ;;; (TODO)
 
-                [   (3_JSRR base)
-                    (begin
-                        (set! new_pc (state base))
-                        (set-state state x7 (bvadd (state PC) (offset 4)))
-                    )   ]
 
-            ;; LOAD
-                ;;; in future, these should also set condition codes based on value loaded
-                [   (3_LDB src1 imm6 dst) 
-                    (set-state state dst (SXT_16 (MASK_LOW8 (state (bvadd (state src1) (SXT_16 imm6))))))   ]
+    ;; JUMP
+    [   (3_JMP base)
+        (set! new_pc (state base))   ]
 
-                [   (3_LDW src1 imm6 dst)
-                    (set-state state dst (state (bvadd (state src1 ) (L_SH_1 (SXT_16 imm6)))))   ]
+    [   (3_RET _)
+        (set! new_pc (state x7))   ]
 
-                [   (3_LEA imm9 dst)
-                    (set-state state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))   ]   
+    [   (3_JSR imm11)
+        (begin
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))))
+            (set-state state x7 (bvadd (state PC) (offset 4)))
+        )   
+    ]
 
-            ;; SHIFT
-                [   (3_LSHF src1 imm4 dst)
-                    (set-state state dst (bvshl (state src1) (SXT_16 imm4)))   ]
+    [   (3_JSRR base)
+        (begin
+            (set! new_pc (state base))
+            (set-state state x7 (bvadd (state PC) (offset 4)))
+        )   
+    ]
 
-                [   (3_RSHFL src1 imm4 dst)
-                    (set-state state dst (bvlshr (state src1 (SXT_16 imm4))))   ]
 
-                [   (3_RSHFA src1 imm4 dst)
-                    (set-state state dst (bvashr (state src1 (SXT_16 imm4))))   ]
+    ;; LOAD
+    ;;; TODO: in future, these should also set condition codes based on value loaded
+    [   (3_LDB src1 imm6 dst) 
+        ; do not keep any existing contents of register. 
+        ; always load into bottom 8 bits.
+        (let ((load_addr (bvadd (state src1) (SXT_16 imm6))))
+        (if
+            ; IF: the 8-place bit in the address is 1
+            (equal?   (bvand load_addr (bv #x0008 16))   (bv #x0008 16))
+            ; THEN: load the low 8 bits into low 8 bits of register
+            (set-state state dst (MASK_LOW8 (state load_addr)))
+            ; ELSE: load the high 8 bits into low 8 bits of register
+            (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
+        )
+        )   
+    ]
 
-            ;; STORE
-                [   (3_STB base src1 imm6)
-                    (set-state state (bvadd (state base) (SXT_16 imm6)) (MASK_LOW8 (state src1)))   ]
+    [   (3_LDW src1 imm6 dst)
+        (set-state state dst (state (bvadd (state src1) (L_SH_1 (SXT_16 imm6)))))   ]
 
-                [   (3_STW base src1 imm6)
-                    (set-state state (bvadd (state base) (SXT_16 imm6)) (state src1))   ]
-            )
-        PC new_pc)
-    )
+    [   (3_LEA imm9 dst)
+        (set-state state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))   ]   
+
+
+    ;; SHIFT
+    [   (3_LSHF src1 imm4 dst)
+        (set-state state dst (bvshl (state src1) (SXT_16 imm4)))   ]
+
+    [   (3_RSHFL src1 imm4 dst)
+        (set-state state dst (bvlshr (state src1 (SXT_16 imm4))))   ]
+
+    [   (3_RSHFA src1 imm4 dst)
+        (set-state state dst (bvashr (state src1 (SXT_16 imm4))))   ]
+
+
+    ;; STORE
+    [   (3_STB base src1 imm6)
+        (let ((store_addr (bvadd (state base) (SXT_16 imm6))))
+        (if
+            ; IF: check if the 8-place bit in the address is 1
+            (equal?   (bvand store_addr (bv #x0008 16))   (bv #x0008 16))
+            ; THEN: store src1's low 8 bits into low 8 bits of address
+            (set-state state store_addr (concat (GET_HIGH8 (state store_addr)) (GET_LOW8 (state src1))))
+            ; ELSE: store src1's low 8 bits into high 8 bits of address
+            (set-state state store_addr (concat (GET_LOW8 (state src1)) (GET_LOW8 (state store_addr))))
+        )
+        )
+    ]
+
+    [   (3_STW base src1 imm6)
+        (set-state state (bvadd (state base) (SXT_16 imm6)) (state src1))   ]
+
+    ) ; /destruct
+    PC new_pc) ; /set-state
+    ) ; /let
 )
 
 (define (eval-lc3b-prog state)
@@ -370,8 +410,113 @@
 ; ----------------------------------------------------------------------------------------------- ;
 
 (define (eval-riscv-instr instr state)
-    (TODO)
-    ;;; (destruct instr
-    ;;;     ; TODO
-    ;;; )
+    (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
+    (set-state ; sets PC to new_pc after current instruction has been run
+    (destruct instr
+    
+    ;; ARITHMETIC
+    [   (5_ADD src1 src2 dst)
+        (set-state state dst (bvadd (state src1) (state src2)))   ]
+
+    [   (5_ADDI src1 imm5 dst)
+        (set-state state dst (bvadd (state src1) (SXT_16 imm5)))   ]
+
+
+    ;; BIT MANIPULATION
+    [   (5_AND src1 src2 dst)
+        (set-state state dst (bvand (state src1) (state src2)))   ]
+
+    [   (5_ANDI src1 imm5 dst)
+        (set-state state dst (bvand (state src1) (SXT_16 imm5)))    ]
+
+    [   (5_XOR src1 src2 dst)
+        (set-state state dst (bvxor (state src1) (state src2)))   ]
+
+    [   (5_XORI src1 imm5 dst)
+        (set-state state dst (bvxor (state src1) (SXT_16 imm5)))   ]
+
+
+    ;; BRANCH (w/ COND)
+    ;;; (TODO)
+
+
+    ;; JUMP
+    [   (5_JAL imm16 dst) ;;; PC + 4 -> dst, imm16 -> PC
+        (begin
+            (set! new_pc imm16)
+            (set-state state dst (bvadd (state PC) (offset 4)))
+        )   
+    ]
+
+    [   (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
+        (begin
+            (set! new_pc (bvand (bvadd (state src1) (SXT_16 imm12)) (bvnot (bv 1 16))))
+            (set-state state dst (bvadd (state PC) (offset 4)))
+        ) 
+    ]
+
+
+    ;; LOAD
+    [   (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
+        ; always place into lowest byte of register. sign-extend to fill register.
+        (let ((load_addr (state (bvadd (state src1) (SXT_16 imm12)))))
+        (if
+            ; IF: the 8-place bit in the address is 1
+            (equal?   (bvand load_addr (bv #x0008 16)   (bv #x0008 16)))
+            ; THEN: load the low 8 bits into low 8 bits of register
+            (set-state state dst (SXT_16 (GET_LOW8 (state load_addr))))
+            ; ELSE: load the high 8 bits into low 8 bits of register
+            (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
+        ) ; /if
+        ) ; /let
+    ]
+
+    [   (5_LH src1 imm12 dst) ;;; MEM[src1 + SXT(imm12)][15:0] -> dst
+        (set-state state dst (state (bvadd (state src1) (SXT_16 imm12))))   ]
+
+
+    ;; SHIFT
+    [   (5_SLLI src1 imm4 dst)
+        (set-state state dst (bvshl (state src1) (SXT_16 imm4)))   ]
+
+    [   (5_SRLI src1 imm4 dst)
+        (set-state state dst (bvlshr (state src1 (SXT_16 imm4))))    ]
+
+    [   (5_SRAI src1 imm4 dst)
+        (set-state state dst (bvashr (state src1 (SXT_16 imm4))))   ]
+
+
+    ;; STORE
+    [   (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
+        ; place into byte specified by store_addr. keep existing other byte, don't overwrite
+        (let ((store_addr (bvadd (state src1) (SXT_16 imm5))))
+        (if
+            ; IF: the 8-place bit in the address is 1
+            (equal?   (bvand store_addr (bv #x0008 16))   (bv #x0008 16))
+            ; THEN: store src2's low 8 bits into low 8 bits of mem[store_addr]
+            (set-state state store_addr (concat (GET_HIGH8 (state store_addr)) (GET_LOW8 (state src2))))
+            ; ELSE: store src2's low 8 bits into high 8 bits of mem[store_addr]
+            (set-state state store_addr (concat (GET_LOW8 (state src2)) (GET_LOW8 (state store_addr))))
+        ) ; /if
+        ) ; /let
+    ]
+
+    [   (5_SH src1 src2 imm5) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
+        (set-state state  (bvadd (state src1) (SXT_16 imm5))  (state src2))   ]
+
+
+    ) ; /destruct
+    PC new_pc) ; /set-state
+    ) ; /let
+)
+
+(define (eval-riscv-prog state)
+  (if
+    ; IF: the instr at MEM[PC] is HLT
+    (equal? (state (state PC)) HLT)
+    ; THEN: we halted, return current state
+    state
+    ; ELSE: we have an instr to run, recurse
+    (eval-riscv-prog (eval-riscv-instr (state (state PC)) state))
+  )
 )
