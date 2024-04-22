@@ -23,14 +23,14 @@
 (struct 3_XORI (src1 imm5 dst) #:transparent)    ;;; src1 ^ imm5 -> dst
 
 ;; BRANCH (w/ COND)
-    ;;; (struct 3_BR (...) #:transparent)
-    ;;; (struct 3_BR_N (...) #:transparent)
-    ;;; (struct 3_BR_Z (...) #:transparent)
-    ;;; (struct 3_BR_P (...) #:transparent)
-    ;;; (struct 3_BR_NP (...) #:transparent)
-    ;;; (struct 3_BR_ZP (...) #:transparent)
-    ;;; (struct 3_BR_NZ (...) #:transparent)
-    ;;; (struct 3_BR_NZP (...) #:transparent)
+(struct 3_BR (imm9) #:transparent)
+(struct 3_BR_N (imm9) #:transparent)
+(struct 3_BR_Z (imm9) #:transparent)
+(struct 3_BR_P (imm9) #:transparent)
+(struct 3_BR_NP (imm9) #:transparent)
+(struct 3_BR_ZP (imm9) #:transparent)
+(struct 3_BR_NZ (imm9) #:transparent)
+(struct 3_BR_NZP (imm9) #:transparent)
 
 ;; JUMP
 (struct 3_JMP (base) #:transparent)              ;;; base -> PC
@@ -72,12 +72,12 @@
 (struct 5_XORI (src1 imm5 dst) #:transparent)    ;;; src1 ^ imm5 -> dst
 
 ;; BRANCH
-    ;;; (struct 5_BEQ () #:transparent)
-    ;;; (struct 5_BNE () #:transparent)
-    ;;; (struct 5_BLT () #:transparent)
-    ;;; (struct 5_BGE () #:transparent)
-    ;;; (struct 5_BLTU () #:transparent)
-    ;;; (struct 5_BGEU () #:transparent)
+(struct 5_BEQ (src1 src2 imm12) #:transparent)
+(struct 5_BNE (src1 src2 imm12) #:transparent)
+(struct 5_BLT (src1 src2 imm12) #:transparent)
+(struct 5_BGE (src1 src2 imm12) #:transparent)
+(struct 5_BLTU (src1 src2 imm12) #:transparent)
+(struct 5_BGEU (src1 src2 imm12) #:transparent)
 
 ;; JUMP
 (struct 5_JAL (imm16 dst) #:transparent)         ;;; PC + 4 -> dst, imm16 -> PC
@@ -180,38 +180,160 @@
 
 ; set up evaluation functions for both LC-3b and RISC-V
 
+(define 3_N_True (bv #b100 3))
+(define 3_Z_True (bv #b010 3))
+(define 3_P_True (bv #b001 3))
+
+(define (set-lc3b-cond-codes state register)
+    (if
+        ; IF: X[register] is zero
+        (bveq (state register) (bv 0 16))
+        ; THEN: set Z = 1
+        (set-state state COND_CODES 3_Z_True)
+        ; ELSE: check between P/N
+        (if
+            ; IF: X[register] is positive
+            (bvsgt (state register) (bv 0 16))
+            ; THEN: set P = 1
+            (set-state state COND_CODES 3_P_True)
+            ; ELSE: set N = 1
+            (set-state state COND_CODES 3_N_True)
+        )
+    )
+)
+
 (define (eval-lc3b-instr instr state)
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
     (set-state ; sets PC to new_pc after current instruction has been run
     (destruct instr
 
     ;; ARITHMETIC
-    [   (3_ADD src1 src2 dst)
-        (set-state state dst (bvadd (state src1) (state src2)))   ]
+    [   
+        (3_ADD src1 src2 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvadd (state src1) (state src2)))
+        dst)
+    ]
 
-    [   (3_ADDI src1 imm5 dst)
-        (set-state state dst (bvadd (state src1) (SXT_16 imm5)))   ]
+    [   
+        (3_ADDI src1 imm5 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvadd (state src1) (SXT_16 imm5)))
+        dst)
+    ]
 
 
     ;; BIT MANIPULATION
-    [   (3_AND src1 src2 dst)
-        (set-state state dst (bvand (state src1) (state src2)))   ]
+    [   
+        (3_AND src1 src2 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvand (state src1) (state src2)))  
+        dst)    
+    ]
 
-    [   (3_ANDI src1 imm5 dst)
-        (set-state state dst (bvand (state src1) (SXT_16 imm5)))   ]
+    [   
+        (3_ANDI src1 imm5 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvand (state src1) (SXT_16 imm5)))  
+        dst) 
+    ]
 
     [   (3_NOT src1 dst)
         (set-state state dst (bvnot (state src1)))   ]
 
-    [   (3_XOR src1 src2 dst)
-        (set-state state dst (bvxor (state src1) (state src2)))   ]
+    [   
+        (3_XOR src1 src2 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvxor (state src1) (state src2)))   
+        dst)
+    ]
 
-    [   (3_XORI src1 imm5 dst)
-        (set-state state dst (bvxor (state src1) (SXT_16 imm5)))   ]
+    [   
+        (3_XORI src1 imm5 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (bvxor (state src1) (SXT_16 imm5)))
+        dst)   
+    ]
 
 
     ;; BRANCH (w/ COND)
-    ;;; (TODO)
+    [   (3_BR imm9)         ; unconditionally branch
+        (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   ]
+
+    [   
+        (3_BR_N imm9)       ; branch if (N = 1)
+        (if
+            ; IF: (N = 1)
+            (bveq (extract 2 2 (state COND_CODES)) (bv 1 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   
+        (3_BR_Z imm9)       ; branch if (Z = 1)
+        (if
+            ; IF: (Z = 1)
+            (bveq (extract 1 1 (state COND_CODES)) (bv 1 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   
+        (3_BR_P imm9)       ; branch if (P = 1)
+        (if
+            ; IF: (P = 1)
+            (bveq (extract 0 0 (state COND_CODES)) (bv 1 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   
+        (3_BR_NP imm9)      ; branch if (N = 1) OR (P = 1), equiv to (Z = 0)
+        (if
+            ; IF: (Z = 0)
+            (bveq (extract 1 1 (state COND_CODES)) (bv 0 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   
+        (3_BR_ZP imm9)      ; branch if (Z = 1) OR (P = 1), equiv to (N = 0)
+        (if
+            ; IF: (N = 0)
+            (bveq (extract 2 2 (state COND_CODES)) (bv 0 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   
+        (3_BR_NZ imm9)      ; branch if (N = 1) OR (Z = 1), equiv to (P = 0)
+        (if
+            ; IF: (P = 0)
+            (bveq (extract 0 0 (state COND_CODES)) (bv 0 1))
+            ; THEN: branch
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+            ; ELSE: do nothing, return current state
+            (state)
+        )
+    ]
+
+    [   (3_BR_NZP imm9)     ; branch if (N = 1) OR (Z = 1) OR (P = 1) ... so always branch.
+        (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   ]
 
 
     ;; JUMP
@@ -221,14 +343,16 @@
     [   (3_RET _)
         (set! new_pc (state x7))   ]
 
-    [   (3_JSR imm11)
+    [   
+        (3_JSR imm11)
         (begin
             (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))))
             (set-state state x7 (bvadd (state PC) (offset 4)))
         )   
     ]
 
-    [   (3_JSRR base)
+    [   
+        (3_JSRR base)
         (begin
             (set! new_pc (state base))
             (set-state state x7 (bvadd (state PC) (offset 4)))
@@ -237,27 +361,37 @@
 
 
     ;; LOAD
-    ;;; TODO: in future, these should also set condition codes based on value loaded
-    [   (3_LDB src1 imm6 dst) 
+    [   
+        (3_LDB src1 imm6 dst) 
         ; do not keep any existing contents of register. 
         ; always load into bottom 8 bits.
-        (let ((load_addr (bvadd (state src1) (SXT_16 imm6))))
-        (if
-            ; IF: the 8-place bit in the address is 1
-            (equal?   (bvand load_addr (bv #x0008 16))   (bv #x0008 16))
-            ; THEN: load the low 8 bits into low 8 bits of register
-            (set-state state dst (MASK_LOW8 (state load_addr)))
-            ; ELSE: load the high 8 bits into low 8 bits of register
-            (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
-        )
-        )   
+        (set-lc3b-cond-codes
+            (let ((load_addr (bvadd (state src1) (SXT_16 imm6))))
+            (if
+                ; IF: the 8-place bit in the address is 1
+                (equal?   (bvand load_addr (bv #x0008 16))   (bv #x0008 16))
+                ; THEN: load the low 8 bits into low 8 bits of register
+                (set-state state dst (MASK_LOW8 (state load_addr)))
+                ; ELSE: load the high 8 bits into low 8 bits of register
+                (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
+            )
+            )
+        dst)
     ]
 
-    [   (3_LDW src1 imm6 dst)
-        (set-state state dst (state (bvadd (state src1) (L_SH_1 (SXT_16 imm6)))))   ]
+    [   
+        (3_LDW src1 imm6 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (state (bvadd (state src1) (L_SH_1 (SXT_16 imm6)))))   
+        dst)
+    ]
 
-    [   (3_LEA imm9 dst)
-        (set-state state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))   ]   
+    [   
+        (3_LEA imm9 dst)
+        (set-lc3b-cond-codes
+            (set-state state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
+        dst)  
+    ]   
 
 
     ;; SHIFT
@@ -272,7 +406,8 @@
 
 
     ;; STORE
-    [   (3_STB base src1 imm6)
+    [   
+        (3_STB base src1 imm6)
         (let ((store_addr (bvadd (state base) (SXT_16 imm6))))
         (if
             ; IF: check if the 8-place bit in the address is 1
@@ -285,8 +420,10 @@
         )
     ]
 
-    [   (3_STW base src1 imm6)
-        (set-state state (bvadd (state base) (SXT_16 imm6)) (state src1))   ]
+    [   
+        (3_STW base src1 imm6)
+        (set-state state (bvadd (state base) (SXT_16 imm6)) (state src1))   
+    ]
 
     ) ; /destruct
     PC new_pc) ; /set-state
@@ -369,8 +506,11 @@
 ; define state for test one
 (define test-one-state 
   (set-state (set-state (set-state (set-state (set-state (set-state
+  (set-state
 
   example-state
+
+  COND_CODES 3_Z_True)
 
   (addr 2000) (3_ADD x1 x2 x0))
   (addr 2004) (3_AND x1 x2 x2))
@@ -437,18 +577,90 @@
 
 
     ;; BRANCH (w/ COND)
-    ;;; (TODO)
+    [   
+        (5_BEQ src1 src2 imm12)      ; branch if MEM[src1] == MEM[src2]
+        (if
+            ; IF: MEM[src1] == MEM[src2]
+            (bveq (state src1) (state src2))
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )   
+    ]
+
+    [   
+        (5_BNE src1 src2 imm12)      ; branch if MEM[src1] != MEM[src2]
+        (if
+            ; IF: MEM[src1] != MEM[src2]
+            (equal? (bveq (state src1) (state src2)) false)
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )   
+    ]
+
+    [   
+        (5_BLT src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2]
+        (if
+            ; IF: MEM[src1] < MEM[src2]
+            (bvslt (state src1) (state src2))
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )    
+    ]
+
+    [   
+        (5_BGE src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2]
+        (if
+            ; IF: MEM[src1] >= MEM[src2]
+            (bvsge (state src1) (state src2))
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )   
+    ]
+
+    [   
+        (5_BLTU src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2] (both unsigned)
+        (if
+            ; IF: MEM[src1] < MEM[src2]
+            (bvult (state src1) (state src2))
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )   
+    ]
+
+    [   
+        (5_BGEU src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2] (both unsigned)
+        (if
+            ; IF: MEM[src1] >= MEM[src2]
+            (bvuge (state src1) (state src2))
+            ; THEN: take the branch
+            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+            ; ELSE: do nothing, return state
+            (state)
+        )   
+    ]
 
 
     ;; JUMP
-    [   (5_JAL imm16 dst) ;;; PC + 4 -> dst, imm16 -> PC
+    [   
+        (5_JAL imm16 dst) ;;; PC + 4 -> dst, imm16 -> PC
         (begin
             (set! new_pc imm16)
             (set-state state dst (bvadd (state PC) (offset 4)))
         )   
     ]
 
-    [   (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
+    [  
+        (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
         (begin
             (set! new_pc (bvand (bvadd (state src1) (SXT_16 imm12)) (bvnot (bv 1 16))))
             (set-state state dst (bvadd (state PC) (offset 4)))
@@ -457,7 +669,8 @@
 
 
     ;; LOAD
-    [   (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
+    [   
+        (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
         ; always place into lowest byte of register. sign-extend to fill register.
         (let ((load_addr (state (bvadd (state src1) (SXT_16 imm12)))))
         (if
@@ -487,7 +700,8 @@
 
 
     ;; STORE
-    [   (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
+    [   
+        (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
         ; place into byte specified by store_addr. keep existing other byte, don't overwrite
         (let ((store_addr (bvadd (state src1) (SXT_16 imm5))))
         (if
