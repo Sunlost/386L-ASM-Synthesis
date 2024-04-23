@@ -34,7 +34,7 @@
 
 ;; JUMP
 (struct 3_JMP (base) #:transparent)              ;;; base -> PC
-(struct 3_RET (_) #:transparent)                 ;;; R7 -> PC
+(struct 3_RET (arg) #:transparent)               ;;; R7 -> PC
 (struct 3_JSR (imm11) #:transparent)             ;;; PC + 4 -> R7, PC + (SXT(imm11) << 1) -> PC
 (struct 3_JSRR (base) #:transparent)             ;;; PC + 4 -> R7, base -> PC
 
@@ -113,8 +113,9 @@
 (define x6 6)
 (define x7 7)
 
-; define PC register name
+; define PC/COND_CODES register names
 (define PC 8)
+(define COND_CODES 9)
 
 ; halt instruction
 (define-symbolic HLT integer?)
@@ -160,6 +161,8 @@
 (define (GET_HIGH8 vec)
     (extract 15 8 vec)
 )
+
+(define (NO_OP state) state) ; i dont know how to just return state without trying to invoke it
 
 ; return a 16-length bitvector containing val (for readability later)
     ; yes these could absolutely call one common function which takes in val and the length...
@@ -258,90 +261,127 @@
 
     ;; BRANCH (w/ COND)
     [   (3_BR imm9)         ; unconditionally branch
-        (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   ]
+        (begin
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   
+            (NO_OP state)
+        )
+    ]
 
     [   
         (3_BR_N imm9)       ; branch if (N = 1)
-        (if
-            ; IF: (N = 1)
-            (bveq (extract 2 2 (state COND_CODES)) (bv 1 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (N = 1)
+                (bveq (extract 2 2 (state COND_CODES)) (bv 1 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
     [   
         (3_BR_Z imm9)       ; branch if (Z = 1)
-        (if
-            ; IF: (Z = 1)
-            (bveq (extract 1 1 (state COND_CODES)) (bv 1 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (Z = 1)
+                (bveq (extract 1 1 (state COND_CODES)) (bv 1 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
     [   
         (3_BR_P imm9)       ; branch if (P = 1)
-        (if
-            ; IF: (P = 1)
-            (bveq (extract 0 0 (state COND_CODES)) (bv 1 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (P = 1)
+                (bveq (extract 0 0 (state COND_CODES)) (bv 1 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
     [   
         (3_BR_NP imm9)      ; branch if (N = 1) OR (P = 1), equiv to (Z = 0)
-        (if
-            ; IF: (Z = 0)
-            (bveq (extract 1 1 (state COND_CODES)) (bv 0 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (Z = 0)
+                (bveq (extract 1 1 (state COND_CODES)) (bv 0 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
     [   
         (3_BR_ZP imm9)      ; branch if (Z = 1) OR (P = 1), equiv to (N = 0)
-        (if
-            ; IF: (N = 0)
-            (bveq (extract 2 2 (state COND_CODES)) (bv 0 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (N = 0)
+                (bveq (extract 2 2 (state COND_CODES)) (bv 0 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
     [   
         (3_BR_NZ imm9)      ; branch if (N = 1) OR (Z = 1), equiv to (P = 0)
-        (if
-            ; IF: (P = 0)
-            (bveq (extract 0 0 (state COND_CODES)) (bv 0 1))
-            ; THEN: branch
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            ; ELSE: do nothing, return current state
-            (state)
+        (begin
+            (if
+                ; IF: (P = 0)
+                (bveq (extract 0 0 (state COND_CODES)) (bv 0 1))
+                ; THEN: branch
+                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                ; ELSE: do nothing, return current state
+                (void)
+            )
+            (NO_OP state)
         )
     ]
 
-    [   (3_BR_NZP imm9)     ; branch if (N = 1) OR (Z = 1) OR (P = 1) ... so always branch.
-        (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   ]
+    [   
+        (3_BR_NZP imm9)     ; branch if (N = 1) OR (Z = 1) OR (P = 1) ... so always branch.
+        (begin
+            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))   
+            (NO_OP state)
+        )
+    ]
 
 
     ;; JUMP
-    [   (3_JMP base)
-        (set! new_pc (state base))   ]
+    [   
+        (3_JMP base)
+        (begin
+            (set! new_pc (state base))
+            (NO_OP state)
+        )   
+    ]
 
-    [   (3_RET _)
-        (set! new_pc (state x7))   ]
+    [   
+        (3_RET _arg)
+        (begin
+            (set! new_pc (state x7))   
+            (NO_OP state)
+        )
+    ]
 
     [   
         (3_JSR imm11)
@@ -445,110 +485,6 @@
 ; ----------------------------------------------------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-; test lc3b implementation
-
-; define our starting state for tests run below
-(define example-state 
-  ; for 8 registers
-  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
-  ; for PC
-  (set-state 
-  ; for first 64b of data memory
-  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
-
-  initial-state 
-
-  x0 (val 0)) 
-  x1 (val 5)) 
-  x2 (val 7))
-  x3 (addr 1000))
-  x4 (val 0))
-  x5 (addr 1008))
-  x6 (val 0)) 
-  x7 (val 14)) 
-
-  PC (addr 2000)) ; instruction memory begins at addr 2000
-
-  (addr 1000) (val 32)) 
-  (addr 1008) (val 0)) 
-  (addr 1016) (val 0)) 
-  (addr 1024) (val 0)) 
-  (addr 1032) (val 0)) 
-  (addr 1040) (val 0)) 
-  (addr 1048) (val 0)) 
-  (addr 1056) (val 0)) 
-)
-
-; base starting state:
-; - PC = 2000
-; - registers
-;     x[0] = 0
-;     x[1] = 5
-;     x[2] = 7
-;     x[3] = 1000
-;     x[4] = 0
-;     x[5] = 1008
-;     x[6] = 0
-;     x[7] = 14
-; - data memory
-;     MEM[1000] = 32
-;     MEM[1008] = 0
-;     MEM[1016] = 0
-;     MEM[1024] = 0
-;     MEM[1032] = 0
-;     MEM[1040] = 0
-;     MEM[1048] = 0
-;     MEM[1056] = 0
-; - instruction memory
-;     [nothing]
-
-
-; define state for test one
-(define test-one-state 
-  (set-state (set-state (set-state (set-state (set-state (set-state
-  (set-state
-
-  example-state
-
-  COND_CODES 3_Z_True)
-
-  (addr 2000) (3_ADD x1 x2 x0))
-  (addr 2004) (3_AND x1 x2 x2))
-  (addr 2008) (3_LDW x3 (imm6 0) x6))
-  (addr 2012) (3_JSR (imm11 4)))
-  (addr 2016) (3_LSHF x3 (imm4 1) x4))
-  (addr 2020) HLT)
-)
-
-(check-equal?
-    (bvadd (addr 2012) (L_SH_1 (SXT_16 (imm4 4))))  ;;; JSR on 2012 should skip LSHF on 2016
-    (addr 2020)
-)
-
-(let ([final-state (eval-lc3b-prog test-one-state)])
-    (check-equal?          (final-state x0) (val 12))     ; altered from starting state
-    (check-equal?          (final-state x1) (val 5))
-    (check-equal?          (final-state x2) (val 5))      ; altered from starting state
-    (check-equal?          (final-state x3) (addr 1000))
-    (check-equal?          (final-state x4) (val 0))      ; should NOT be changed from starting state
-    (check-equal?          (final-state x5) (addr 1008))
-    (check-equal?          (final-state x6) (val 32))     ; altered from starting state
-    (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
-    (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
-    (check-equal? (final-state (addr 1000)) (val 32))
-    (check-equal? (final-state (addr 1008)) (val 0))
-    (check-equal? (final-state (addr 1016)) (val 0))
-    (check-equal? (final-state (addr 1024)) (val 0))
-    (check-equal? (final-state (addr 1032)) (val 0))
-    (check-equal? (final-state (addr 1040)) (val 0))
-    (check-equal? (final-state (addr 1048)) (val 0))
-    (check-equal? (final-state (addr 1056)) (val 0))
-)
-
-; ----------------------------------------------------------------------------------------------- ;
-; ----------------------------------------------------------------------------------------------- ;
-; ----------------------------------------------------------------------------------------------- ;
-
 (define (eval-riscv-instr instr state)
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
     (set-state ; sets PC to new_pc after current instruction has been run
@@ -579,74 +515,92 @@
     ;; BRANCH (w/ COND)
     [   
         (5_BEQ src1 src2 imm12)      ; branch if MEM[src1] == MEM[src2]
-        (if
-            ; IF: MEM[src1] == MEM[src2]
-            (bveq (state src1) (state src2))
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )   
+        (begin
+            (if
+                ; IF: MEM[src1] == MEM[src2]
+                (bveq (state src1) (state src2))
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )
+            (NO_OP state)
+        )
     ]
 
     [   
         (5_BNE src1 src2 imm12)      ; branch if MEM[src1] != MEM[src2]
-        (if
-            ; IF: MEM[src1] != MEM[src2]
-            (equal? (bveq (state src1) (state src2)) false)
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )   
+        (begin
+            (if
+                ; IF: MEM[src1] != MEM[src2]
+                (equal? (bveq (state src1) (state src2)) false)
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )  
+            (NO_OP state)
+        ) 
     ]
 
     [   
         (5_BLT src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2]
-        (if
-            ; IF: MEM[src1] < MEM[src2]
-            (bvslt (state src1) (state src2))
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )    
+        (begin
+            (if
+                ; IF: MEM[src1] < MEM[src2]
+                (bvslt (state src1) (state src2))
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )    
+            (NO_OP state)
+        )
     ]
 
     [   
         (5_BGE src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2]
-        (if
-            ; IF: MEM[src1] >= MEM[src2]
-            (bvsge (state src1) (state src2))
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )   
+        (begin
+            (if
+                ; IF: MEM[src1] >= MEM[src2]
+                (bvsge (state src1) (state src2))
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )
+            (NO_OP state) 
+        )
     ]
 
     [   
         (5_BLTU src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2] (both unsigned)
-        (if
-            ; IF: MEM[src1] < MEM[src2]
-            (bvult (state src1) (state src2))
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )   
+        (begin
+            (if
+                ; IF: MEM[src1] < MEM[src2]
+                (bvult (state src1) (state src2))
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )
+            (NO_OP state) 
+        )
     ]
 
     [   
         (5_BGEU src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2] (both unsigned)
-        (if
-            ; IF: MEM[src1] >= MEM[src2]
-            (bvuge (state src1) (state src2))
-            ; THEN: take the branch
-            (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-            ; ELSE: do nothing, return state
-            (state)
-        )   
+        (begin
+            (if
+                ; IF: MEM[src1] >= MEM[src2]
+                (bvuge (state src1) (state src2))
+                ; THEN: take the branch
+                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
+                ; ELSE: do nothing, return state
+                (void)
+            )
+            (NO_OP state) 
+        )
     ]
 
 
@@ -734,3 +688,206 @@
     (eval-riscv-prog (eval-riscv-instr (state (state PC)) state))
   )
 )
+
+
+
+
+
+
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(module+ test
+
+
+
+
+; test lc3b implementation
+
+; define our starting state for tests run below
+(define example-state 
+  ; for 8 registers
+  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
+  ; for PC
+  (set-state 
+  ; for first 64b of data memory
+  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
+
+  initial-state 
+
+  x0 (val 0)) 
+  x1 (val 5)) 
+  x2 (val 7))
+  x3 (addr 1000))
+  x4 (val 0))
+  x5 (addr 1008))
+  x6 (val 0)) 
+  x7 (val 14)) 
+
+  PC (addr 2000)) ; instruction memory begins at addr 2000
+
+  (addr 1000) (val 32)) 
+  (addr 1008) (val 0)) 
+  (addr 1016) (val 0)) 
+  (addr 1024) (val 0)) 
+  (addr 1032) (val 0)) 
+  (addr 1040) (val 0)) 
+  (addr 1048) (val 0)) 
+  (addr 1056) (val 0)) 
+)
+
+; base starting state:
+; - PC = 2000
+; - registers
+;     x[0] = 0
+;     x[1] = 5
+;     x[2] = 7
+;     x[3] = 1000
+;     x[4] = 0
+;     x[5] = 1008
+;     x[6] = 0
+;     x[7] = 14
+; - data memory
+;     MEM[1000] = 32
+;     MEM[1008] = 0
+;     MEM[1016] = 0
+;     MEM[1024] = 0
+;     MEM[1032] = 0
+;     MEM[1040] = 0
+;     MEM[1048] = 0
+;     MEM[1056] = 0
+; - instruction memory
+;     [nothing]
+
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+; define state for test one
+(define test-one-state 
+  (set-state (set-state (set-state (set-state (set-state (set-state
+  (set-state
+
+  example-state
+
+  COND_CODES 3_Z_True)
+
+  (addr 2000) (3_ADD x1 x2 x0))
+  (addr 2004) (3_AND x1 x2 x2))
+  (addr 2008) (3_LDW x3 (imm6 0) x6))
+  (addr 2012) (3_JSR (imm11 4)))
+  (addr 2016) (3_LSHF x3 (imm4 1) x4))
+  (addr 2020) HLT)
+)
+
+(check-equal?
+    (bvadd (addr 2012) (L_SH_1 (SXT_16 (imm4 4))))  ;;; JSR on 2012 should skip LSHF on 2016
+    (addr 2020)
+)
+
+(let ([final-state (eval-lc3b-prog test-one-state)])
+    (check-equal?          (final-state x0) (val 12))     ; altered from starting state
+    (check-equal?          (final-state x1) (val 5))
+    (check-equal?          (final-state x2) (val 5))      ; altered from starting state
+    (check-equal?          (final-state x3) (addr 1000))
+    (check-equal?          (final-state x4) (val 0))      ; should NOT be changed from starting state
+    (check-equal?          (final-state x5) (addr 1008))
+    (check-equal?          (final-state x6) (val 32))     ; altered from starting state
+    (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
+    (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
+    (check-equal? (final-state (addr 1000)) (val 32))
+    (check-equal? (final-state (addr 1008)) (val 0))
+    (check-equal? (final-state (addr 1016)) (val 0))
+    (check-equal? (final-state (addr 1024)) (val 0))
+    (check-equal? (final-state (addr 1032)) (val 0))
+    (check-equal? (final-state (addr 1040)) (val 0))
+    (check-equal? (final-state (addr 1048)) (val 0))
+    (check-equal? (final-state (addr 1056)) (val 0))
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+; define state for test two
+(define test-two-state 
+  (set-state (set-state (set-state (set-state (set-state (set-state
+  (set-state
+
+  example-state
+
+  COND_CODES 3_Z_True)
+
+  (addr 2000) (3_ADD x1 x2 x0))
+  (addr 2004) (3_AND x1 x2 x2))
+  (addr 2008) (3_BR_P (imm11 6)))
+  (addr 2012) (3_JSR (imm11 4)))       ; skipped
+  (addr 2016) (3_LSHF x3 (imm4 1) x4)) ; skipped
+  (addr 2020) HLT)
+)
+
+(check-equal?
+    (bvadd (addr 2012) (L_SH_1 (SXT_16 (imm4 4))))  ;;; JSR on 2012 should skip LSHF on 2016
+    (addr 2020)
+)
+
+(let ([final-state (eval-lc3b-prog test-two-state)])
+    (check-equal?          (final-state x0) (val 12))     ; altered from starting state
+    (check-equal?          (final-state x1) (val 5))
+    (check-equal?          (final-state x2) (val 5))      ; altered from starting state
+    (check-equal?          (final-state x3) (addr 1000))
+     ; v  x4 should NOT be changed from starting state  v
+    (check-equal?          (final-state x4) (test-two-state x4))    
+    (check-equal?          (final-state x5) (addr 1008))
+    (check-equal?          (final-state x6) (val 0))     
+     ; v  x7 should NOT be changed from starting state  v
+    (check-equal?          (final-state x7) (test-two-state x7))
+    (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
+    (check-equal?  (final-state COND_CODES) 3_P_True)     ; altered from starting state
+    (check-equal? (final-state (addr 1000)) (val 32))
+    (check-equal? (final-state (addr 1008)) (val 0))
+    (check-equal? (final-state (addr 1016)) (val 0))
+    (check-equal? (final-state (addr 1024)) (val 0))
+    (check-equal? (final-state (addr 1032)) (val 0))
+    (check-equal? (final-state (addr 1040)) (val 0))
+    (check-equal? (final-state (addr 1048)) (val 0))
+    (check-equal? (final-state (addr 1056)) (val 0))
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+; define state for test two
+(define test-three-state 
+  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state
+  (set-state
+
+  example-state
+
+  COND_CODES 3_Z_True)
+
+  (addr 2000) (3_XOR x0 x0 x0))
+  (addr 2004) (3_ADDI x0 (imm5 1) x0))
+  (addr 2008) (3_ADDI x0 (imm5 1) x0))
+  (addr 2012) (3_JSR (imm11 6)))      
+  (addr 2016) (3_ADDI x0 (imm5 1) x0))
+  (addr 2020) HLT)
+
+  (addr 2024) (3_ADDI x0 (imm5 1) x0))
+  (addr 2028) (3_RET 0))
+)
+
+(check-equal?
+    (bvadd (addr 2012) (L_SH_1 (SXT_16 (imm4 6))))  ;;; JSR on 2012 should jump to 2024
+    (addr 2024)
+)
+
+(let ([final-state (eval-lc3b-prog test-three-state)])
+    (check-equal?          (final-state x0) (val 4))      ; altered from starting state
+    (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
+    (check-equal?  (final-state COND_CODES) 3_P_True)   ; altered from starting state
+)
+
+) ; /module+ test
