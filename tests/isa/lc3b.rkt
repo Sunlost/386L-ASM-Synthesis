@@ -18,7 +18,7 @@
 
     test-state-1 ; see tests/common.rkt
 
-    ; LC-3b program
+    ; Program 1 (LC-3b)
     (addr 2000) (3_ADD x1 x2 x0))
     (addr 2004) (3_AND x1 x2 x2))
     (addr 2008) (3_LDW x3 (imm6 0) x6))
@@ -56,17 +56,18 @@
 ; ------------------------------------- Test 2 -------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define lc3b-test-2 
-  (set-state (set-state (set-state (set-state (set-state (set-state
+(define lc3b-test-2
+    (set-state (set-state (set-state (set-state (set-state (set-state
 
-  test-state-1
+    test-state-1
 
-  (addr 2000) (3_ADD x1 x2 x0))
-  (addr 2004) (3_AND x1 x2 x2))
-  (addr 2008) (3_BR_P (imm11 6)))
-  (addr 2012) (3_JSR (imm11 4)))       ; skipped
-  (addr 2016) (3_LSHF x3 (imm4 1) x4)) ; skipped
-  (addr 2020) HLT)
+    ; Program 2 (LC-3b)
+    (addr 2000) (3_ADD x1 x2 x0))
+    (addr 2004) (3_AND x1 x2 x2))
+    (addr 2008) (3_BR_P (imm11 6)))
+    (addr 2012) (3_JSR (imm11 4)))       ; skipped
+    (addr 2016) (3_LSHF x3 (imm4 1) x4)) ; skipped
+    (addr 2020) HLT)
 )
 
 (check-equal?
@@ -80,9 +81,9 @@
     (check-equal?          (final-state x2) (val 5))      ; altered from starting state
     (check-equal?          (final-state x3) (addr 1000))
      ; v  x4 should NOT be changed from starting state  v
-    (check-equal?          (final-state x4) (lc3b-test-2 x4))    
+    (check-equal?          (final-state x4) (lc3b-test-2 x4))
     (check-equal?          (final-state x5) (addr 1008))
-    (check-equal?          (final-state x6) (val 0))     
+    (check-equal?          (final-state x6) (val 0))
      ; v  x7 should NOT be changed from starting state  v
     (check-equal?          (final-state x7) (lc3b-test-2 x7))
     (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
@@ -110,7 +111,7 @@
     (addr 2000) (3_XOR x0 x0 x0))
     (addr 2004) (3_ADDI x0 (imm5 1) x0))
     (addr 2008) (3_ADDI x0 (imm5 1) x0))
-    (addr 2012) (3_JSR (imm11 6)))      
+    (addr 2012) (3_JSR (imm11 6)))
     (addr 2016) (3_ADDI x0 (imm5 1) x0))
     (addr 2020) HLT)
 

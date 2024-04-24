@@ -25,10 +25,10 @@
 ;    This simplifies our state and avoids the complexity of dealing with
 ;    stack pointers / the program status register / etc.
 ;
-
-; Template : (struct 3_... () #:transparent)
+; Template  : (struct 3_... () #:transparent)
 ;
-; SXT      : Means "sign-extend to 16 bits".
+; SXT(x, y) : Means "sign-extend x to y bits."
+;             If y undefined, default y = 16.
 
 ;; ARITHMETIC
 (struct 3_ADD    (src1 src2 dst) #:transparent) ;;; src1 + src2 -> dst
@@ -53,7 +53,7 @@
 
 ;; JUMP
 (struct 3_JMP    (base )         #:transparent) ;;; base -> PC
-(struct 3_RET    (arg  )         #:transparent) ;;; R7 -> PC
+(struct 3_RET    ()              #:transparent) ;;; R7 -> PC
 (struct 3_JSR    (imm11)         #:transparent) ;;; PC + 4 -> R7, PC + (SXT(imm11) << 1) -> PC
 (struct 3_JSRR   (base )         #:transparent) ;;; PC + 4 -> R7, base -> PC
 
@@ -75,7 +75,9 @@
 ; ------------------------------------------ SEMANTICS ------------------------------------------ ;
 ; ----------------------------------------------------------------------------------------------- ;
 
+;
 ; Define LC-3b ASM semantics
+;
 
 (define (set-lc3b-cond-codes state register)
     ; Set condition code of the current state based on the value inside a register.
@@ -267,7 +269,7 @@
             (NO_OP state)
         )   ]
 
-    [   (3_RET _arg)
+    [   (3_RET)
         (begin
             (set! new_pc (state x7))
             (NO_OP state)
@@ -312,7 +314,7 @@
         (3_LEA imm9 dst)
         (set-lc3b-cond-codes
             (set-register state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
-        dst)   
+        dst)
     ]
 
 
@@ -352,6 +354,10 @@
     )       ; /let
 )
 
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
 (define (eval-lc3b-prog-state state)
     ; Wrapper for eval-lc3b-prog
     ;
@@ -359,7 +365,7 @@
     ;     state  : Current state of the LC-3b machine.
     ;
     ; Returns:
-    ;     state' : The final state of the LC-3b machine 
+    ;     state' : The final state of the LC-3b machine
     ;              after running the program.
 
     (if

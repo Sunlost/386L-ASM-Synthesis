@@ -1,9 +1,10 @@
 #lang rosette/safe
 
+(require racket/string)
 (require rosette/lib/angelic)
 (require "isa/lc3b.rkt" "isa/riscv.rkt" "state.rkt")
 
-(provide rosette-compile-riscv)
+(provide rosette-compile)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------- ROSETTE MAPPINGS ---------------------------------------- ;
@@ -19,43 +20,50 @@
     ;
     ; Returns:
     ;     inst : A symbolic LC-3b instruction.
-
-    (define-symbolic* src1 src2 dst imm4 imm5 imm6 imm9 imm11 base arg integer?)
+    (define-symbolic*  src1 reg_val?)
+    (define-symbolic*  src2 reg_val?)
+    (define-symbolic*   dst reg_val?)
+    (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm5    imm5?)
+    (define-symbolic*  imm6    imm6?)
+    (define-symbolic*  imm9    imm9?)
+    (define-symbolic* imm11   imm11?)
+    (define-symbolic*  base reg_val?)
     (choose*
         ;; ARITHMETIC
-        (3_ADD    src1 src2 dst)
-        (3_ADDI   src1 imm5 dst)
+        (3_ADD     src1 src2  dst)
+        (3_ADDI    src1 imm5  dst)
         ;; BIT MANIPULATION
-        (3_AND    src1 src2 dst)
-        (3_ANDI   src1 imm5 dst)
-        (3_NOT    src1 dst)
-        (3_XOR    src1 src2 dst)
-        (3_XORI   src1 imm5 dst)
+        (3_AND     src1 src2  dst)
+        (3_ANDI    src1 imm5  dst)
+        (3_NOT          src1  dst)
+        (3_XOR     src1 src2  dst)
+        (3_XORI    src1 imm5  dst)
         ;; BRANCH (w/ COND)
-        (3_BR     imm9)
-        (3_BR_N   imm9)
-        (3_BR_Z   imm9)
-        (3_BR_P   imm9)
-        (3_BR_NP  imm9)
-        (3_BR_ZP  imm9)
-        (3_BR_NZ  imm9)
-        (3_BR_NZP imm9)
+        (3_BR                imm9)
+        (3_BR_N              imm9)
+        (3_BR_Z              imm9)
+        (3_BR_P              imm9)
+        (3_BR_NP             imm9)
+        (3_BR_ZP             imm9)
+        (3_BR_NZ             imm9)
+        (3_BR_NZP            imm9)
         ;; JUMP
-        (3_JMP    base)
-        (3_RET    arg)
-        (3_JSR    imm11)
-        (3_JSRR   base)
+        (3_JMP               base)
+        (3_RET                   )
+        (3_JSR              imm11)
+        (3_JSRR              base)
         ;; LOAD
-        (3_LDB    base imm6 dst)
-        (3_LDW    base imm6 dst)
-        (3_LEA    imm9 dst)
+        (3_LDB     base imm6  dst)
+        (3_LDW     base imm6  dst)
+        (3_LEA          imm9  dst)
         ;; SHIFT
-        (3_LSHF   src1 imm4 dst)
-        (3_RSHFL  src1 imm4 dst)
-        (3_RSHFA  src1 imm4 dst)
+        (3_LSHF    src1 imm4  dst)
+        (3_RSHFL   src1 imm4  dst)
+        (3_RSHFA   src1 imm4  dst)
         ;; STORE
-        (3_STB    base src1 imm6)
-        (3_STW    base src1 imm6)
+        (3_STB     base src1 imm6)
+        (3_STW     base src1 imm6)
     ) ; /choose*
 )
 
@@ -64,8 +72,13 @@
     ;
     ; Returns:
     ;     inst : A symbolic RISC-V instruction.
-
-    (define-symbolic* src1 src2 dst imm4 imm5 imm12 imm16 integer?)
+    (define-symbolic*  src1 reg_val?)
+    (define-symbolic*  src2 reg_val?)
+    (define-symbolic*   dst reg_val?)
+    (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm5    imm5?)
+    (define-symbolic* imm12   imm12?)
+    (define-symbolic* imm16   imm16?)
     (choose*
         ;; ARITHMETIC
         (5_ADD  src1  src2   dst)
@@ -98,106 +111,186 @@
     ) ; /choose*
 )
 
-(define (gen-list-instr-n instr_type n)
+; ----------------------------------------------------------------------------------------------- ;
+; -------------------------------------- ROSETTE HELPERS ---------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define (gen-list-instr-n isa n)
     ; Generate a length-n list of symbolic instructions.
     ;
     ; Parameters:
-    ;     instr_type : The type of symbolic instruction to generate. 
-    ;                  (??lc3b_instr, ??riscv_instr)
-    ;     n          : The desired length of the list.
+    ;     isa : The Rosette mapping of instructions to use.
+    ;           {??lc3b_instr, ??riscv_instr}
+    ;     n   : The desired length of the list.
     ;
     ; Returns:
     ;     insts : A list of n symbolic instructions.
 
-    (if 
+    (if
         ; IF   : n < 1
-        (< n 1) 
+        (< n 1)
         ; THEN : return empty list
-        null 
-        ; ELSE : Return ??instr appended to list obtained 
+        null
+        ; ELSE : Return ??instr appended to list obtained
         ;        from a recursive call.
-        (cons (instr_type) (gen-list-instr-n instr_type (- n 1)))
+        (cons (isa) (gen-list-instr-n isa (- n 1)))
     )
 )
 
-(define (gen-list-riscv-instr-n n)
-    ; Generate a length-n list of symbolic RISC-V instructions.
+(define (get-isa isa_string)
+    ; Get the Rosette mapping for an ISA.
     ;
     ; Parameters:
-    ;     n : The desired length of the list.
+    ;    isa_string : The ISA name as a string.
+    ;                 {"lc3b", "riscv"}
     ;
     ; Returns:
-    ;     insts : A list of n symbolic RISC-V instructions.
+    ;    isa : The Rosette mapping of instructions to use.
+    ;          {??lc3b_instr, ??riscv_instr}
 
-    (gen-list-instr-n ??riscv_instr n)
+    (case isa_string
+        (("lc3b")  ??lc3b_instr)
+        (("riscv") ??riscv_instr)
+    )
 )
 
-(define (gen-list-lc3b-instr-n n)
-    ; Generate a length-n list of symbolic LC-3B instructions.
+(define (get-eval-prog isa_string)
+    ; Get the program evaluation function for an ISA.
     ;
     ; Parameters:
-    ;     n : The desired length of the list.
+    ;    isa_string : The ISA name as a string.
+    ;                 {"lc3b", "riscv"}
     ;
     ; Returns:
-    ;     insts : A list of n symbolic LC-3B instructions.
+    ;    eval_prog : The program evaluation function
+    ;                for the ISA.
+    ;                {eval-riscv-prog, eval-lc3b-prog}
 
-    (gen-list-instr-n ??lc3b_instr n)
+    (case isa_string
+        (("lc3b")  eval-lc3b-prog)
+        (("riscv") eval-riscv-prog)
+    )
 )
 
-(define (rosette-compile-riscv* lc3b_program n)
-    ; Compile an equivalent RISC-V program from an LC-3b program using Rosette.
+; ----------------------------------------------------------------------------------------------- ;
+; --------------------------- ROSETTE SYNTHESIS (LC-3b -> RISC-V) ------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define (rosette-compile* source_isa target_isa source_prog n)
+    ; Compile an equivalent program in the target ISA, from
+    ; a program written in some source ISA, using Rosette.
     ;
     ; Parameters:
-    ;     lc3b_program : A list of LC-3b instructions
-    ;     n            : The desired number of instructions in the compiled RISC-V program.
+    ;     source_isa  : The source ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     target_isa  : The target ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     source_prog : The list of instructions representing
+    ;                   the program in the source ISA.
+    ;     n           : The desired number of instructions in
+    ;                   the compiled program.
     ;
-    ; Returns:
-    ;     If satisfiable: 
-    ;         riscv_program : A list of RISC-V instructions of length n
-    ;     Otherwise:
-    ;         #f
-    (define riscv_program (gen-list-riscv-instr-n n))
-    (define M 
+    ; Returns (if satisfiable):
+    ;     target_prog : A list of instructions representing
+    ;                   a semantically-equivalent program
+    ;                   in the target ISA.
+    ;
+    ; Returns (if not satisfiable):
+    ;     #f
+
+    (displayln
+        (format "[DEBUG][rosette-compile] ~a -> ~a n = ~a" source_isa target_isa n)
+    )
+
+    (define target_prog      (gen-list-instr-n (get-isa target_isa) n))
+    (define target_eval_prog (get-eval-prog    target_isa))
+    (define source_eval_prog (get-eval-prog    source_isa))
+    (define M
         (synthesize
             #:forall    (list var)
-            #:guarantee (assert (= (eval-riscv-prog riscv_program) (eval-lc3b-prog lc3b_program)))
+            #:guarantee (assert (= (target_eval_prog target_prog) (source_eval_prog source_prog)))
         ) ; /synthesize
     )     ; /define
-    (if 
-        (sat? M) 
-        (evaluate riscv_program M) 
+    (if
+        ; IF   : Satisfiable
+        (sat? M)
+        ; THEN : Return the compiled program
+        (evaluate target_prog M)
+        ; ELSE : Return #f
         #f
     )
 )
 
-(define (rosette-compile-riscv-wrapper lc3b_program n)
-    ; Wrapper function that tries to compile the expression with n instructions.
-    ; If it cannot, it tries again with one more instruction.
-    (displayln 
-        (format "[DEBUG][rosette-compile-riscv-wrapper] Trying with ~a instructions" n)
+(define (rosette-compile-wrapper source_isa target_isa source_prog n)
+    ; Wrapper around rosette-compile*.
+    ;
+    ; Parameters:
+    ;     source_isa  : The source ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     target_isa  : The target ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     source_prog : The list of instructions representing
+    ;                   the program in the source ISA.
+    ;     n           : The desired number of instructions in
+    ;                   the compiled program.
+    ;
+    ; Returns (if halts):
+    ;     target_prog : A list of instructions representing
+    ;                   a semantically-equivalent program
+    ;                   in the target ISA.
+    ;
+    ; The program will repeatedly try larger values of n on
+    ; rosette-compile* until a satisfiable program is found.
+
+    (define target_prog
+        (rosette-compile*
+            source_isa
+            target_isa
+            source_prog
+            n
+        )
     )
-    (define riscv_program (rosette-compile-riscv* lc3b_program n))
     (if
         ; IF   : Compiling with n instructions failed
-        (equal? riscv_program #f) 
-        ; THEN : Try again with n+1 instructions
-        (rosette-compile-riscv-wrapper lc3b_program (+ n 1)) 
+        (equal? target_prog #f)
+        ; THEN : Try again with n + 1 instructions
+        (rosette-compile-wrapper
+            source_isa
+            target_isa
+            source_prog
+            (+ n 1)
+        )
         ; ELSE : Return the compiled program
-        riscv_program
+        target_prog
     )
 )
 
-(define (rosette-compile-riscv lc3b_program)
-    ; Compile an equivalent RISC-V program from an LC-3b program using Rosette.
+
+(define (rosette-compile source_isa target_isa source_prog)
+    ; Compile an equivalent program in the target ISA, from
+    ; a program written in some source ISA, using Rosette.
     ;
     ; Parameters:
-    ;     lc3b_program : A list of LC-3b instructions
+    ;     source_isa  : The source ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     target_isa  : The target ISA name as a string.
+    ;                   {"lc3b", "riscv"}
+    ;     source_prog : The list of instructions representing
+    ;                   the program in the source ISA.
     ;
-    ; Returns:
-    ;     riscv_program : A list of RISC-V instructions
+    ; Returns (if halts):
+    ;     target_prog : A list of instructions representing
+    ;                   a semantically-equivalent program
+    ;                   in the target ISA.
     ;
-    ; We iteratively try to increase the value of n for rosette-compile-riscv* using
-    ; the rosette-compile-riscv-wrapper. function rosette-compile-riscv-wrapper.
+    ; The program will use rosette-compile-wrapper, which
+    ; repeatedly tries larger values of n on rosette-compile*
+    ; until a satisfiable program is found.
 
-    (rosette-compile-riscv-wrapper lc3b_program 1)
+    (rosette-compile-wrapper
+        source_isa
+        target_isa
+        source_prog
+        1
+    )
 )

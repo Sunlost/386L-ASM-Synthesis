@@ -78,7 +78,7 @@
 
     ; TODO: Write tests that use this function.
 
-    (displayln (format "[DEBUG][valid-memory-val] val=~a" val))
+    ; (displayln (format "[DEBUG][valid-memory-val] val=~a" val))
 
     (and
         ; type check
@@ -174,8 +174,8 @@
         ; type check
         (bv? val)
         ; length check
-        (equal? 
-            (length (bitvector->bits val)) 
+        (equal?
+            (length (bitvector->bits val))
             (length (bitvector->bits (addr 0)))
         )
     )
@@ -198,9 +198,9 @@
     ;         Z: 0b010
     ;         P: 0b001
 
-    (and 
+    (and
         ; type check
-        (bv? val) 
+        (bv? val)
         ; length check
         (equal?
             (length (bitvector->bits val))
@@ -208,8 +208,8 @@
         )
         ; value check
         (or
-            (bveq val 3_N_True) 
-            (bveq val 3_Z_True) 
+            (bveq val 3_N_True)
+            (bveq val 3_Z_True)
             (bveq val 3_P_True)
         ) ;/or
     ) ;/and
@@ -258,13 +258,13 @@
 
     ; (displayln (format "[DEBUG][set-register] loc=~a, val=~a" loc val))
 
-    (if 
+    (if
         ; IF  : Loc and value are valid as a register number / value
         (and (valid-register-loc loc) (valid-register-val val))
         ; THEN : Return state function with updated map
         (set-state state loc val)
         ; ELSE : Return current state function
-        state   
+        state
     )
 )
 
@@ -352,6 +352,18 @@
 (define       3_Z_True (bv #b010 3))
 (define       3_P_True (bv #b001 3))
 
+; Symbolic values for Rosette
+(define reg_val? (bitvector 16))
+(define mem_val? (bitvector  8))
+(define offset?  (bitvector 16))
+(define imm4?    (bitvector  4))
+(define imm5?    (bitvector  5))
+(define imm6?    (bitvector  6))
+(define imm9?    (bitvector  9))
+(define imm11?   (bitvector 11))
+(define imm12?   (bitvector 12))
+(define imm16?   (bitvector 16))
+
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------- VARIABLES ----------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
@@ -388,9 +400,9 @@
 
     (set-condition-code
     ; for PC
-    (set-pc 
+    (set-pc
     ; for 8 general-purpose registers
-    (set-register (set-register (set-register (set-register (set-register (set-register 
+    (set-register (set-register (set-register (set-register (set-register (set-register
     (set-register (set-register
 
         ; Initial state : Map all values to <mem_val> 0
@@ -413,7 +425,7 @@
         3_Z_True)
 )
 
-(define (NO_OP state) 
+(define (NO_OP state)
     ; Represent a NO_OP as a function that returns the state unchanged.
     ;
     ; We don't know how to just return state, without trying to invoke it...

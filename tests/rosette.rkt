@@ -11,8 +11,8 @@
 
 ; TODO: Test LC-3b -> RISC-V translation using Rosette on a few dummy programs and inputs
 
-(define program-one-lc3b 
-    (list 
+(define program-one-lc3b
+    (list
         (3_ADD     x1 x2 x0)
         (3_AND     x1 x2 x2)
         (3_BR_P    (imm11 6))
@@ -23,7 +23,7 @@
 
 ; TODO: Fix this! It's enlarging forever.
 (define program-one-riscv
-    (rosette-compile-riscv program-one-lc3b)
+    (rosette-compile "lc3b" "riscv" program-one-lc3b)
 )
 
 ; Print the new program

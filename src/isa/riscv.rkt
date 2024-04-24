@@ -16,14 +16,13 @@
 ;
 ; 1. Only a subset of instructions are supported.
 ;
-;    This makes the mapping much easier, as there are many 
+;    This makes the mapping much easier, as there are many
 ;    RISC-V instructions with no obvious equivalent or
 ;    meaningful equivalent in LC-3b.
-;   
-
+;
 ; Template  : (struct 5_... () #:transparent)
 ;
-; SXT(x, y) : Means "sign-extend x to y bits." 
+; SXT(x, y) : Means "sign-extend x to y bits."
 ;             If y undefined, default y = 16.
 
 ;; ARITHMETIC
@@ -50,7 +49,7 @@
 (struct 5_JALR (src1 imm12 dst)  #:transparent) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
 
 ;; LOAD
-(struct 5_LB   (src1 imm12 dst)  #:transparent) ;;; SXT(MEM[src1 + SXT(imm12)][7:0]) -> dst 
+(struct 5_LB   (src1 imm12 dst)  #:transparent) ;;; SXT(MEM[src1 + SXT(imm12)][7:0]) -> dst
 (struct 5_LH   (src1 imm12 dst)  #:transparent) ;;; MEM[src1 + SXT(imm12)][15:0] -> dst
 
 ;; SHIFT
@@ -67,7 +66,9 @@
 ; ------------------------------------------ SEMANTICS ------------------------------------------ ;
 ; ----------------------------------------------------------------------------------------------- ;
 
+;
 ; Define RISC-V ASM semantics
+;
 
 (define (eval-riscv-instr instr state)
     ; Apply the semantics of the given RISC-V instruction to the current state.
@@ -87,7 +88,7 @@
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
     (set-pc ; sets PC to new_pc after current instruction has been run
     (destruct instr
-    
+
     ;; ARITHMETIC
     [   (5_ADD src1 src2 dst)
         (set-register state dst (bvadd (state src1) (state src2)))   ]
@@ -133,7 +134,7 @@
                 (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
                 ; ELSE: do nothing, return state
                 (void)
-            )  
+            )
             (NO_OP state)
         )   ]
 
@@ -146,7 +147,7 @@
                 (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
                 ; ELSE: do nothing, return state
                 (void)
-            )    
+            )
             (NO_OP state)
         )   ]
 
@@ -160,7 +161,7 @@
                 ; ELSE: do nothing, return state
                 (void)
             )
-            (NO_OP state) 
+            (NO_OP state)
         )   ]
 
     [   (5_BLTU src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2] (both unsigned)
@@ -173,7 +174,7 @@
                 ; ELSE: do nothing, return state
                 (void)
             )
-            (NO_OP state) 
+            (NO_OP state)
         )   ]
 
     [   (5_BGEU src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2] (both unsigned)
@@ -186,7 +187,7 @@
                 ; ELSE: do nothing, return state
                 (void)
             )
-            (NO_OP state) 
+            (NO_OP state)
         )   ]
 
 
@@ -206,7 +207,7 @@
 
     ;; LOAD
     [   ; LB   : Load Byte
-        (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
+        (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst
         (let* ([ addr (bvadd  (state src1) (SXT_16 imm12)) ]
                [ data (SXT_16 (state addr)) ])
             (set-register state dst data)
@@ -215,7 +216,7 @@
 
 
     [   ; LH   : Load Halfword
-        (5_LH src1 imm12 dst) 
+        (5_LH src1 imm12 dst)
         (let* ([ addr_low  (bvadd  (state src1) (SXT_16 imm12)) ]
                [ addr_high (bvadd  addr_low (addr 1)) ]
                [ data      (CAT_16 (state addr_high) (state addr_low))  ])
@@ -236,7 +237,7 @@
 
 
     ;; STORE
-    [   
+    [
         ; SB    : Store Byte
         (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
         (let* ([ addr (bvadd (state src1) (SXT_16 imm5)) ]
@@ -261,6 +262,10 @@
     )       ; /let
 )
 
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
 (define (eval-riscv-prog-state state)
     ; Wrapper for eval-riscv-prog
     ;
@@ -268,7 +273,7 @@
     ;     state  : Current state of the RISC-V machine.
     ;
     ; Returns:
-    ;     state' : The final state of the RISC-V machine 
+    ;     state' : The final state of the RISC-V machine
     ;              after running the program.
     (if
         ; IF: the instr at MEM[PC] is HLT
