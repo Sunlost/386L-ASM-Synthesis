@@ -85,29 +85,29 @@
     ;     - The program counter
 
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
-    (set-state ; sets PC to new_pc after current instruction has been run
+    (set-pc ; sets PC to new_pc after current instruction has been run
     (destruct instr
     
     ;; ARITHMETIC
     [   (5_ADD src1 src2 dst)
-        (set-state state dst (bvadd (state src1) (state src2)))   ]
+        (set-register state dst (bvadd (state src1) (state src2)))   ]
 
     [   (5_ADDI src1 imm5 dst)
-        (set-state state dst (bvadd (state src1) (SXT_16 imm5)))   ]
+        (set-register state dst (bvadd (state src1) (SXT_16 imm5)))   ]
 
 
     ;; BIT MANIPULATION
     [   (5_AND src1 src2 dst)
-        (set-state state dst (bvand (state src1) (state src2)))   ]
+        (set-register state dst (bvand (state src1) (state src2)))   ]
 
     [   (5_ANDI src1 imm5 dst)
-        (set-state state dst (bvand (state src1) (SXT_16 imm5)))    ]
+        (set-register state dst (bvand (state src1) (SXT_16 imm5)))    ]
 
     [   (5_XOR src1 src2 dst)
-        (set-state state dst (bvxor (state src1) (state src2)))   ]
+        (set-register state dst (bvxor (state src1) (state src2)))   ]
 
     [   (5_XORI src1 imm5 dst)
-        (set-state state dst (bvxor (state src1) (SXT_16 imm5)))   ]
+        (set-register state dst (bvxor (state src1) (SXT_16 imm5)))   ]
 
 
     ;; BRANCH (w/ COND)
@@ -194,81 +194,82 @@
     [   (5_JAL imm16 dst) ;;; PC + 4 -> dst, imm16 -> PC
         (begin
             (set! new_pc imm16)
-            (set-state state dst (bvadd (state PC) (offset 4)))
+            (set-register state dst (bvadd (state PC) (offset 4)))
         )   ]
 
     [   (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
         (begin
             (set! new_pc (bvand (bvadd (state src1) (SXT_16 imm12)) (bvnot (bv 1 16))))
-            (set-state state dst (bvadd (state PC) (offset 4)))
+            (set-register state dst (bvadd (state PC) (offset 4)))
         )    ]
 
 
     ;; LOAD
-    [   (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
-        ; always place into lowest byte of register. sign-extend to fill register.
-        (let ((load_addr (state (bvadd (state src1) (SXT_16 imm12)))))
-        (if
-            ; IF: the 8-place bit in the address is 1
-            (equal?   (bvand load_addr (bv #x0008 16)   (bv #x0008 16)))
-            ; THEN: load the low 8 bits into low 8 bits of register
-            (set-state state dst (SXT_16 (GET_LOW8 (state load_addr))))
-            ; ELSE: load the high 8 bits into low 8 bits of register
-            (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
-        ) ; /if
-        ) ; /let
+    [   ; LB   : Load Byte
+        (5_LB src1 imm12 dst) ;;; SXT-=(MEM[src1 + SXT(imm12)][7:0]) -> dst 
+        (let* ([ addr (bvadd  (state src1) (SXT_16 imm12)) ]
+               [ data (SXT_16 (state addr)) ])
+            (set-register state dst data)
+        )
     ]
 
-    [   (5_LH src1 imm12 dst) ;;; MEM[src1 + SXT(imm12)][15:0] -> dst
-        (set-state state dst (state (bvadd (state src1) (SXT_16 imm12))))   ]
+
+    [   ; LH   : Load Halfword
+        (5_LH src1 imm12 dst) 
+        (let* ([ addr_low  (bvadd  (state src1) (SXT_16 imm12)) ]
+               [ addr_high (bvadd  addr_low (addr 1)) ]
+               [ data      (CAT_16 (state addr_high) (state addr_low))  ])
+            (set-register state dst data)
+        )
+    ]
 
 
     ;; SHIFT
     [   (5_SLLI src1 imm4 dst)
-        (set-state state dst (bvshl (state src1) (SXT_16 imm4)))   ]
+        (set-register state dst (bvshl (state src1) (SXT_16 imm4)))   ]
 
     [   (5_SRLI src1 imm4 dst)
-        (set-state state dst (bvlshr (state src1 (SXT_16 imm4))))    ]
+        (set-register state dst (bvlshr (state src1 (SXT_16 imm4))))    ]
 
     [   (5_SRAI src1 imm4 dst)
-        (set-state state dst (bvashr (state src1 (SXT_16 imm4))))   ]
+        (set-register state dst (bvashr (state src1 (SXT_16 imm4))))   ]
 
 
     ;; STORE
     [   
+        ; SB    : Store Byte
         (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
-        ; place into byte specified by store_addr. keep existing other byte, don't overwrite
-        (let ((store_addr (bvadd (state src1) (SXT_16 imm5))))
-        (if
-            ; IF: the 8-place bit in the address is 1
-            (equal?   (bvand store_addr (bv #x0008 16))   (bv #x0008 16))
-            ; THEN: store src2's low 8 bits into low 8 bits of mem[store_addr]
-            (set-state state store_addr (concat (GET_HIGH8 (state store_addr)) (GET_LOW8 (state src2))))
-            ; ELSE: store src2's low 8 bits into high 8 bits of mem[store_addr]
-            (set-state state store_addr (concat (GET_LOW8 (state src2)) (GET_LOW8 (state store_addr))))
-        ) ; /if
-        ) ; /let
+        (let* ([ addr (bvadd (state src1) (SXT_16 imm5)) ]
+               [ data (GET_LOW8 (state src2)) ])
+            (set-memory state addr data)
+        )
     ]
 
-    [   (5_SH src1 src2 imm5) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
-        (set-state state  (bvadd (state src1) (SXT_16 imm5))  (state src2))   ]
+    [   ; SH    : Store Halfword
+        (5_SH src1 src2 imm5) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
+        (let* ([ addr_low  (bvadd     (state src1) (SXT_16 imm5))]
+               [ addr_high (bvadd     (addr_low) (addr 1))]
+               [ data_low  (GET_LOW8  (state src2))]
+               [ data_high (GET_HIGH8 (state src2))])
+            (set-memory state addr_low  data_low)
+            (set-memory state addr_high data_high)
+        );
+    ]
 
-
-    )          ; /destruct
-    PC new_pc) ; /set-state
-    )          ; /let
+    )       ; /destruct
+    new_pc) ; /set-pc
+    )       ; /let
 )
 
-
-(define (eval-riscv-prog state)
-    ; Evaluate a full RISC-V program using our syntax and semantics.
+(define (eval-riscv-prog-state state)
+    ; Wrapper for eval-riscv-prog
     ;
     ; Parameters:
-    ;     state  : Current state of theRISC-V machine.
+    ;     state  : Current state of the RISC-V machine.
     ;
     ; Returns:
-    ;     state' : Final state after the machine halts (if ever).
-
+    ;     state' : The final state of the RISC-V machine 
+    ;              after running the program.
     (if
         ; IF: the instr at MEM[PC] is HLT
         (equal? (state (state PC)) HLT)
@@ -277,4 +278,17 @@
         ; ELSE: we have an instr to run, recurse
         (eval-riscv-prog (eval-riscv-instr (state (state PC)) state))
     )
+)
+
+(define (eval-riscv-prog state)
+    ; Evaluate a full RISC-V program using our syntax and semantics.
+    ;
+    ; Parameters:
+    ;     state  : Initial state of the RISC-V machine.
+    ;
+    ; Returns:
+    ;     R[0]   : The return value from the program,
+    ;              stored in R[0].
+
+    (eval-riscv-prog-state state) x0
 )

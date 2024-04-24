@@ -15,9 +15,27 @@
     (sign-extend vec (bitvector 16))
 )
 
+(define (ZXT_16 vec)
+    ; Zero extend a bit-vector to 16 bits
+    (zero-extend vec (bitvector 16))
+)
+
+(define (CAT_16 vec1 vec2)
+    ; Concatenate two 8-bit bit-vectors into a 16-bit bit-vector
+    (bvadd
+        (L_SH_8 (ZXT_16 vec1))
+        (ZXT_16 vec2)
+    )
+)
+
 (define (L_SH_1 vec)
-    ; Shift a bit-vector left by 1 bit
+    ; Shift a 16-bit bit-vector left by 1 bit
     (bvshl vec (bv 1 16))
+)
+
+(define (L_SH_8 vec)
+    ; Shift a 16-bit bit-vector left by 8 bits
+    (bvshl vec (bv 8 16))
 )
 
 (define (MASK_HIGH8 vec)

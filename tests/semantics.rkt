@@ -13,12 +13,14 @@
 
 ; define our starting state for tests run below
 (define example-state 
-  ; for 8 registers
-  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
-  ; for PC
+  ; for first 64 B of data
+  (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
   (set-state 
-  ; for first 64b of data memory
-  (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state 
+  ; for PC
+  (set-pc 
+  ; for 8 general-purpose registers
+  (set-register (set-register (set-register (set-register (set-register (set-register (set-register 
+  (set-register 
 
   initial-state 
 
@@ -31,16 +33,16 @@
   x6 (val 0)) 
   x7 (val 14)) 
 
-  PC (addr 2000)) ; instruction memory begins at addr 2000
+  (addr 2000)) ; instruction memory begins at addr 2000
 
-  (addr 1000) (val 32)) 
-  (addr 1008) (val 0)) 
-  (addr 1016) (val 0)) 
-  (addr 1024) (val 0)) 
-  (addr 1032) (val 0)) 
-  (addr 1040) (val 0)) 
-  (addr 1048) (val 0)) 
-  (addr 1056) (val 0)) 
+  (addr 1000) (mem_val 32)) 
+  (addr 1008) (mem_val 0)) 
+  (addr 1016) (mem_val 0)) 
+  (addr 1024) (mem_val 0)) 
+  (addr 1032) (mem_val 0)) 
+  (addr 1040) (mem_val 0)) 
+  (addr 1048) (mem_val 0)) 
+  (addr 1056) (mem_val 0)) 
 )
 
 ; base starting state:
@@ -110,11 +112,8 @@
 ; define state for test two
 (define test-two-state 
   (set-state (set-state (set-state (set-state (set-state (set-state
-  (set-state
 
   example-state
-
-  COND_CODES 3_Z_True)
 
   (addr 2000) (3_ADD x1 x2 x0))
   (addr 2004) (3_AND x1 x2 x2))

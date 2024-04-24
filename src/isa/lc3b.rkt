@@ -93,15 +93,15 @@
         ; IF: X[register] is zero
         (bveq (state register) (bv 0 16))
         ; THEN: set Z = 1
-        (set-state state COND_CODES 3_Z_True)
+        (set-condition-code state 3_Z_True)
         ; ELSE: check between P/N
         (if
             ; IF: X[register] is positive
             (bvsgt (state register) (bv 0 16))
             ; THEN: set P = 1
-            (set-state state COND_CODES 3_P_True)
+            (set-condition-code state 3_P_True)
             ; ELSE: set N = 1
-            (set-state state COND_CODES 3_N_True)
+            (set-condition-code state 3_N_True)
         )
     )
 )
@@ -122,43 +122,43 @@
     ;     - The program counter
 
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
-    (set-state ; sets PC to new_pc after current instruction has been run
+    (set-pc ; sets PC to new_pc after current instruction has been run
     (destruct instr
 
     ;; ARITHMETIC
     [   (3_ADD src1 src2 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvadd (state src1) (state src2)))
+            (set-register state dst (bvadd (state src1) (state src2)))
         dst)   ]
 
     [   (3_ADDI src1 imm5 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvadd (state src1) (SXT_16 imm5)))
+            (set-register state dst (bvadd (state src1) (SXT_16 imm5)))
         dst)   ]
 
 
     ;; BIT MANIPULATION
     [   (3_AND src1 src2 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvand (state src1) (state src2)))
+            (set-register state dst (bvand (state src1) (state src2)))
         dst)   ]
 
     [   (3_ANDI src1 imm5 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvand (state src1) (SXT_16 imm5)))
+            (set-register state dst (bvand (state src1) (SXT_16 imm5)))
         dst)   ]
 
     [   (3_NOT src1 dst)
-        (set-state state dst (bvnot (state src1)))   ]
+        (set-register state dst (bvnot (state src1)))   ]
 
     [   (3_XOR src1 src2 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvxor (state src1) (state src2)))
+            (set-register state dst (bvxor (state src1) (state src2)))
         dst)   ]
 
     [   (3_XORI src1 imm5 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (bvxor (state src1) (SXT_16 imm5)))
+            (set-register state dst (bvxor (state src1) (SXT_16 imm5)))
         dst)   ]
 
 
@@ -276,86 +276,91 @@
     [   (3_JSR imm11)
         (begin
             (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))))
-            (set-state state x7 (bvadd (state PC) (offset 4)))
+            (set-register state x7 (bvadd (state PC) (offset 4)))
         )   ]
 
     [   (3_JSRR base)
         (begin
             (set! new_pc (state base))
-            (set-state state x7 (bvadd (state PC) (offset 4)))
+            (set-register state x7 (bvadd (state PC) (offset 4)))
         )   ]
 
 
     ;; LOAD
-    [   (3_LDB src1 imm6 dst)
-        ; do not keep any existing contents of register.
-        ; always load into bottom 8 bits.
+    [   ; LDB : Load Byte
+        (3_LDB src1 imm6 dst)
         (set-lc3b-cond-codes
-            (let ((load_addr (bvadd (state src1) (SXT_16 imm6))))
-            (if
-                ; IF: the 8-place bit in the address is 1
-                (equal?   (bvand load_addr (bv #x0008 16))   (bv #x0008 16))
-                ; THEN: load the low 8 bits into low 8 bits of register
-                (set-state state dst (MASK_LOW8 (state load_addr)))
-                ; ELSE: load the high 8 bits into low 8 bits of register
-                (set-state state dst (SXT_16 (GET_HIGH8 (state load_addr))))
-            ) ; /if
+            (let* ([ addr (bvadd  (state src1) (SXT_16 imm6)) ]
+                   [ data (SXT_16 (state addr))               ])
+            (set-register state dst data)
             ) ; /let
         dst)  ; /set-lc3b-condition-codes
     ]
 
-    [   (3_LDW src1 imm6 dst)
+    [   ; LDW : Load Word
+        (3_LDW src1 imm6 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (state (bvadd (state src1) (L_SH_1 (SXT_16 imm6)))))
-        dst)   ]
+            (let* ([ addr_low  (bvadd  (state src1) (L_SH_1 (SXT_16 imm6))) ]
+                   [ addr_high (bvadd  addr_low     (addr 1))               ]
+                   [ data      (CAT_16 (state addr_high) (state addr_low))  ])
+            (set-register state dst data)
+            ) ; /let
+        dst)  ; /set-lc3b-condition-codes
+    ]
 
-    [   (3_LEA imm9 dst)
+    [   ; LEA : Load Effective Address
+        (3_LEA imm9 dst)
         (set-lc3b-cond-codes
-            (set-state state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
-        dst)   ]
+            (set-register state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
+        dst)   
+    ]
 
 
     ;; SHIFT
     [   (3_LSHF src1 imm4 dst)
-        (set-state state dst (bvshl (state src1) (SXT_16 imm4)))   ]
+        (set-register state dst (bvshl (state src1) (SXT_16 imm4)))   ]
 
     [   (3_RSHFL src1 imm4 dst)
-        (set-state state dst (bvlshr (state src1 (SXT_16 imm4))))   ]
+        (set-register state dst (bvlshr (state src1 (SXT_16 imm4))))   ]
 
     [   (3_RSHFA src1 imm4 dst)
-        (set-state state dst (bvashr (state src1 (SXT_16 imm4))))   ]
+        (set-register state dst (bvashr (state src1 (SXT_16 imm4))))   ]
 
 
     ;; STORE
-    [   (3_STB base src1 imm6)
-        (let ((store_addr (bvadd (state base) (SXT_16 imm6))))
-        (if
-            ; IF: check if the 8-place bit in the address is 1
-            (equal?   (bvand store_addr (bv #x0008 16))   (bv #x0008 16))
-            ; THEN: store src1's low 8 bits into low 8 bits of address
-            (set-state state store_addr (concat (GET_HIGH8 (state store_addr)) (GET_LOW8 (state src1))))
-            ; ELSE: store src1's low 8 bits into high 8 bits of address
-            (set-state state store_addr (concat (GET_LOW8 (state src1)) (GET_LOW8 (state store_addr))))
-        ) ; /if
+    [   ; STB : Store Byte
+        (3_STB base src1 imm6)
+        (let* ([ addr (bvadd    (state base) (SXT_16 imm6)) ]
+               [ data (GET_LOW8 (state src1)) ])
+        (set-memory state addr data)
         ) ; /let
     ]
 
-    [   (3_STW base src1 imm6)
-        (set-state state (bvadd (state base) (SXT_16 imm6)) (state src1))   ]
+    [   ; STW : Store word
+        (3_STW base src1 imm6)
+        (let* ([ addr_low  (bvadd     (state base) (L_SH_1 (SXT_16 imm6))) ]
+               [ addr_high (bvadd     (addr_low) (addr 1)) ]
+               [ data_low  (GET_LOW8  (state src1)) ]
+               [ data_high (GET_HIGH8 (state src1)) ])
+        (set-memory state addr_low  data_low)
+        (set-memory state addr_high data_high)
+        ) ; /let
+    ]
 
-    )          ; /destruct
-    PC new_pc) ; /set-state
-    )          ; /let
+    )       ; /destruct
+    new_pc) ; /set-pc
+    )       ; /let
 )
 
-(define (eval-lc3b-prog state)
-    ; Evaluate a full LC-3b program using our syntax and semantics.
+(define (eval-riscv-prog-state state)
+    ; Wrapper for eval-lc3b-prog
     ;
     ; Parameters:
     ;     state  : Current state of the LC-3b machine.
     ;
     ; Returns:
-    ;     state' : Final state after the machine halts (if ever).
+    ;     state' : The final state of the LC-3b machine 
+    ;              after running the program.
 
     (if
         ; IF: the instr at MEM[PC] is HLT
@@ -365,4 +370,17 @@
         ; ELSE: we have an instr to run, recurse
         (eval-lc3b-prog (eval-lc3b-instr (state (state PC)) state))
     )
+)
+
+(define (eval-lc3b-prog initial_state)
+    ; Evaluate a LC-3b program starting from the given state.
+    ;
+    ; Parameters:
+    ;     initial_state : Initial state of the LC-3b machine.
+    ;
+    ; Returns:
+    ;     R[0] : The return value from the program,
+    ;            stored in R[0].
+
+    (eval-lc3b-prog-state initial_state) x0
 )
