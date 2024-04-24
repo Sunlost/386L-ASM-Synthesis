@@ -13,7 +13,8 @@
 ; Set up cross-synthesis functions that use Rosette to create an equivalent program
 ; in the other ISA.
 
-(define-symbolic var integer?)
+; The symbolic input to the program (stored in R0)
+(define-symbolic input_r0 reg_val?)
 
 (define (??lc3b_instr)
     ; Generate a single symbolic LC-3B instruction, which Rosette will try to fill in.
@@ -197,6 +198,9 @@
     ;
     ; Returns (if not satisfiable):
     ;     #f
+    ;
+    ; Rosette assumes that the program output is located in
+    ; x0 upon reaching a HLT instruction.
 
     (displayln
         (format "[DEBUG][rosette-compile] ~a -> ~a n = ~a" source_isa target_isa n)
@@ -207,7 +211,7 @@
     (define source_eval_prog (get-eval-prog    source_isa))
     (define M
         (synthesize
-            #:forall    (list var)
+            #:forall    (list input_r0)
             #:guarantee (assert (= (target_eval_prog target_prog) (source_eval_prog source_prog)))
         ) ; /synthesize
     )     ; /define

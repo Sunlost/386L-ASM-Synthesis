@@ -13,18 +13,19 @@
 ; ------------------------------------- Test 1 -------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
+(define lc3b-prog-1
+    (list
+        (3_ADD x1 x2 x0)         ; 2000
+        (3_AND x1 x2 x2)         ; 2004
+        (3_LDW x3 (imm6 0) x6)   ; 2008
+        (3_JSR (imm11 4))        ; 2012
+        (3_LSHF x3 (imm4 1) x4)  ; 2016
+        HLT                      ; 2020
+    )
+)
+
 (define lc3b-test-1
-    (set-state (set-state (set-state (set-state (set-state (set-state
-
-    test-state-1 ; see tests/common.rkt
-
-    ; Program 1 (LC-3b)
-    (addr 2000) (3_ADD x1 x2 x0))
-    (addr 2004) (3_AND x1 x2 x2))
-    (addr 2008) (3_LDW x3 (imm6 0) x6))
-    (addr 2012) (3_JSR (imm11 4)))
-    (addr 2016) (3_LSHF x3 (imm4 1) x4))
-    (addr 2020) HLT)
+    (set-instrs test-state-1 (addr 2000) lc3b-prog-1)
 )
 
 (check-equal?
@@ -56,18 +57,19 @@
 ; ------------------------------------- Test 2 -------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
+(define lc3b-prog-2
+    (list
+        (3_ADD x1 x2 x0)         ; 2000
+        (3_AND x1 x2 x2)         ; 2004
+        (3_BR_P (imm11 6))       ; 2008
+        (3_JSR (imm11 4))        ; 2012, skipped
+        (3_LSHF x3 (imm4 1) x4)  ; 2016, skipped
+        HLT                      ; 2020
+    )
+)
+
 (define lc3b-test-2
-    (set-state (set-state (set-state (set-state (set-state (set-state
-
-    test-state-1
-
-    ; Program 2 (LC-3b)
-    (addr 2000) (3_ADD x1 x2 x0))
-    (addr 2004) (3_AND x1 x2 x2))
-    (addr 2008) (3_BR_P (imm11 6)))
-    (addr 2012) (3_JSR (imm11 4)))       ; skipped
-    (addr 2016) (3_LSHF x3 (imm4 1) x4)) ; skipped
-    (addr 2020) HLT)
+    (set-instrs test-state-1 (addr 2000) lc3b-prog-2)
 )
 
 (check-equal?
@@ -102,21 +104,21 @@
 ; ------------------------------------- Test 3 -------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
+(define lc3b-prog-3
+    (list
+        (3_XOR x0 x0 x0)        ; 2000
+        (3_ADDI x0 (imm5 1) x0) ; 2004
+        (3_ADDI x0 (imm5 1) x0) ; 2008
+        (3_JSR (imm11 6))       ; 2012
+        (3_ADDI x0 (imm5 1) x0) ; 2016
+        HLT                     ; 2020
+        (3_ADDI x0 (imm5 1) x0) ; 2024
+        (3_RET)                 ; 2028
+    )
+)
+
 (define lc3b-test-3
-    (set-state (set-state (set-state (set-state (set-state (set-state (set-state (set-state
-
-    test-state-1 ; see tests/common.rkt
-
-    ; Program 3 (LC-3B)
-    (addr 2000) (3_XOR x0 x0 x0))
-    (addr 2004) (3_ADDI x0 (imm5 1) x0))
-    (addr 2008) (3_ADDI x0 (imm5 1) x0))
-    (addr 2012) (3_JSR (imm11 6)))
-    (addr 2016) (3_ADDI x0 (imm5 1) x0))
-    (addr 2020) HLT)
-
-    (addr 2024) (3_ADDI x0 (imm5 1) x0))
-    (addr 2028) (3_RET 0))
+    (set-instrs test-state-1 (addr 2000) lc3b-prog-3)
 )
 
 (check-equal?

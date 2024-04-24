@@ -28,8 +28,6 @@
     ;     1. Location must be of type <addr> (16-bit bit-vector)
     ;     2. Location must NOT be to one of the registers x0 - x7, PC, or COND_CODE.
 
-    ; TODO: Write tests that use this function.
-
     (and
         ; type check
         (bv? loc)
@@ -76,10 +74,6 @@
     ;        only to set data, not instructions. Instructions should be
     ;        set using set-state (TODO: Create separate set-instruction)
 
-    ; TODO: Write tests that use this function.
-
-    ; (displayln (format "[DEBUG][valid-memory-val] val=~a" val))
-
     (and
         ; type check
         (or
@@ -91,8 +85,8 @@
                 (length (bitvector->bits val))
                 (length (bitvector->bits (mem_val 0)))
             )
-        )
-    )
+        ) ; /or
+    )     ; /and
 )
 
 (define (valid-register-loc loc)
@@ -211,8 +205,21 @@
             (bveq val 3_N_True)
             (bveq val 3_Z_True)
             (bveq val 3_P_True)
-        ) ;/or
-    ) ;/and
+        ) ; /or
+    )     ; /and
+)
+
+(define (valid-instr-val val)
+    ; Determine if a value is a valid instruction value.
+    ;
+    ; Parameters:
+    ;     val : The value to check
+    ;
+    ; Returns:
+    ;     #t : If the value is a valid instruction value
+    ;     #f : Otherwise
+
+    #t ; TODO: Implement stricter checking
 )
 
 (define (set-memory state loc val)
@@ -226,8 +233,6 @@
     ; Returns:
     ;     state' : The updated state mapping function, with
     ;              M[loc] = val, if loc is a valid location.
-
-    ; (displayln (format "[DEBUG][set-memory] loc=~a, val=~a" loc val))
 
     (if
         ; IF  : Loc and value are valid as a memory address / value
@@ -256,8 +261,6 @@
     ;     Setting the PC and condition codes should
     ;     be done using their respective functions below.
 
-    ; (displayln (format "[DEBUG][set-register] loc=~a, val=~a" loc val))
-
     (if
         ; IF  : Loc and value are valid as a register number / value
         (and (valid-register-loc loc) (valid-register-val val))
@@ -278,6 +281,7 @@
     ; Returns:
     ;     state' : The updated state mapping function, with
     ;              PC = val.
+
     (if
         ; IF  : val is a valid PC
         (valid-pc-val val)
@@ -298,12 +302,64 @@
     ; Returns:
     ;     state' : The updated state mapping function, with
     ;              COND_CODES = val.
+
     (if
         ; IF  : val is a valid condition code
         (valid-condition-code-val val)
         ; THEN : Return state function with updated map
         (set-state state COND_CODES val)
         ; ELSE : Return current state function
+        state
+    )
+)
+
+(define (set-instr state loc val)
+    ; Map an instruction to a particular memory address.
+    ;
+    ; Parameters:
+    ;     state  : The current state mapping function
+    ;     loc    : The memory address to set the instruction to
+    ;     val    : The instruction to store
+    ;
+    ; Returns:
+    ;     state' : The updated state mapping function, with
+    ;              M[loc] = instr, if loc is a valid location.
+
+    (if
+        ; IF  : Loc and value are valid as a memory address / value
+        (and (valid-memory-loc loc) (valid-instr-val val))
+        ; THEN : Return state function with updated map
+        (set-state state loc val)
+        ; ELSE : Return current state function
+        state
+    )
+)
+
+(define (set-instrs state loc instrs)
+    ; Map a list of instructions linearly onto the
+    ; memory address space, starting at loc.
+    ;
+    ; Parameters:
+    ;     state  : The current state mapping function
+    ;     loc    : The memory address to start storing instructions
+    ;     instrs : The list of instructions to store
+    ;
+    ; Returns:
+    ;     state' : The updated state mapping function, with
+    ;              M[loc + i] = instrs[i], for all i in instrs.
+    ;
+    ; This is done recursively.
+
+    (if
+        ; IF   : instrs is not empty
+        (not (null? instrs))
+        ; THEN : Recursively set the first instruction, and then the rest
+        (set-instrs
+            (set-instr state loc (car instrs)) ; Set this instruction
+            (bvadd loc (addr 4))               ; loc += 4
+            (cdr instrs)
+        )
+        ; ELSE : Return the state as is
         state
     )
 )
@@ -326,6 +382,7 @@
 
     (lambda (r) (if (equal? loc r) val (state r)))
 )
+
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; --------------------------------------- CONSTRUCTS -------------------------------------------- ;

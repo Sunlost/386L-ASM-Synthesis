@@ -11,19 +11,20 @@
 
 ; TODO: Test LC-3b -> RISC-V translation using Rosette on a few dummy programs and inputs
 
-(define program-one-lc3b
+(define lc3b-prog-1
     (list
-        (3_ADD     x1 x2 x0)
-        (3_AND     x1 x2 x2)
-        (3_BR_P    (imm11 6))
-        (3_JSR     (imm11 4))
-        (3_LSHF x3 (imm4  1) x4)
+        (3_ADD     x1 x2 x0)     ; 2000
+        (3_AND     x1 x2 x2)     ; 2004
+        (3_BR_P    (imm11 6))    ; 2008
+        (3_JSR     (imm11 4))    ; 2012
+        (3_LSHF x3 (imm4  1) x4) ; 2016
+        HLT                      ; 2020
     )
 )
 
 ; TODO: Fix this! It's enlarging forever.
 (define program-one-riscv
-    (rosette-compile "lc3b" "riscv" program-one-lc3b)
+    (rosette-compile "lc3b" "riscv" lc3b-prog-1)
 )
 
 ; Print the new program
