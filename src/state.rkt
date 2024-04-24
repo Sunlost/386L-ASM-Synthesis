@@ -333,13 +333,12 @@
 
 ; Instruction operands
 ;
-; NOTE: These *could* absolutely call one common function which takes in the val and the length...
 ;       but this is for readability. adding another layer doesn't make sense here.
 
 (define (addr     val) (bv val 16))
 (define (val      val) (bv val 16)) ; TODO: Replace with reg_val
-(define (reg_val  val) (bv val 16))
-(define (mem_val  val) (bv val  8))
+(define (reg_val  val) (bv val 16)) ; Register value (16b)
+(define (mem_val  val) (bv val  8)) ; Memory value   (8b)
 (define (offset   val) (bv val 16))
 (define (imm4     val) (bv val  4))
 (define (imm5     val) (bv val  5))

@@ -88,7 +88,7 @@
     (addr 2020)
 )
 
-(let ([final-state (eval-lc3b-prog test-one-state)])
+(let ([final-state (eval-lc3b-prog-state test-one-state)])
     (check-equal?          (final-state x0) (val 12))     ; altered from starting state
     (check-equal?          (final-state x1) (val 5))
     (check-equal?          (final-state x2) (val 5))      ; altered from starting state
@@ -98,14 +98,14 @@
     (check-equal?          (final-state x6) (val 32))     ; altered from starting state
     (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
     (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
-    (check-equal? (final-state (addr 1000)) (val 32))
-    (check-equal? (final-state (addr 1008)) (val 0))
-    (check-equal? (final-state (addr 1016)) (val 0))
-    (check-equal? (final-state (addr 1024)) (val 0))
-    (check-equal? (final-state (addr 1032)) (val 0))
-    (check-equal? (final-state (addr 1040)) (val 0))
-    (check-equal? (final-state (addr 1048)) (val 0))
-    (check-equal? (final-state (addr 1056)) (val 0))
+    (check-equal? (final-state (addr 1000)) (mem_val 32))
+    (check-equal? (final-state (addr 1008)) (mem_val 0))
+    (check-equal? (final-state (addr 1016)) (mem_val 0))
+    (check-equal? (final-state (addr 1024)) (mem_val 0))
+    (check-equal? (final-state (addr 1032)) (mem_val 0))
+    (check-equal? (final-state (addr 1040)) (mem_val 0))
+    (check-equal? (final-state (addr 1048)) (mem_val 0))
+    (check-equal? (final-state (addr 1056)) (mem_val 0))
 )
 
 
@@ -128,7 +128,7 @@
     (addr 2020)
 )
 
-(let ([final-state (eval-lc3b-prog test-two-state)])
+(let ([final-state (eval-lc3b-prog-state test-two-state)])
     (check-equal?          (final-state x0) (val 12))     ; altered from starting state
     (check-equal?          (final-state x1) (val 5))
     (check-equal?          (final-state x2) (val 5))      ; altered from starting state
@@ -141,14 +141,14 @@
     (check-equal?          (final-state x7) (test-two-state x7))
     (check-equal?          (final-state PC) (addr 2020))  ; altered from starting state
     (check-equal?  (final-state COND_CODES) 3_P_True)     ; altered from starting state
-    (check-equal? (final-state (addr 1000)) (val 32))
-    (check-equal? (final-state (addr 1008)) (val 0))
-    (check-equal? (final-state (addr 1016)) (val 0))
-    (check-equal? (final-state (addr 1024)) (val 0))
-    (check-equal? (final-state (addr 1032)) (val 0))
-    (check-equal? (final-state (addr 1040)) (val 0))
-    (check-equal? (final-state (addr 1048)) (val 0))
-    (check-equal? (final-state (addr 1056)) (val 0))
+    (check-equal? (final-state (addr 1000)) (mem_val 32))
+    (check-equal? (final-state (addr 1008)) (mem_val 0))
+    (check-equal? (final-state (addr 1016)) (mem_val 0))
+    (check-equal? (final-state (addr 1024)) (mem_val 0))
+    (check-equal? (final-state (addr 1032)) (mem_val 0))
+    (check-equal? (final-state (addr 1040)) (mem_val 0))
+    (check-equal? (final-state (addr 1048)) (mem_val 0))
+    (check-equal? (final-state (addr 1056)) (mem_val 0))
 )
 
 
@@ -174,7 +174,7 @@
     (addr 2024)
 )
 
-(let ([final-state (eval-lc3b-prog test-three-state)])
+(let ([final-state (eval-lc3b-prog-state test-three-state)])
     (check-equal?          (final-state x0) (val 4))      ; altered from starting state
     (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
     (check-equal?  (final-state COND_CODES) 3_P_True)   ; altered from starting state
@@ -201,7 +201,7 @@
   (addr 2028) (5_JALR x7 (imm12 0) x1)) ; return
 )
 
-(let ([final-state (eval-riscv-prog risc-test-one-state)])
+(let ([final-state (eval-riscv-prog-state risc-test-one-state)])
     (check-equal?          (final-state x0) (val 4))      ; altered from starting state
     (check-equal?          (final-state x1) (addr 2032))  ; altered from starting state
     (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
@@ -229,7 +229,7 @@
   (addr 2032) (5_BEQ x0 x1 (imm12 -12)))  ; BEQ  x0 x1 .L1
 )
 
-(let ([final-state (eval-riscv-prog risc-test-two-state)])
+(let ([final-state (eval-riscv-prog-state risc-test-two-state)])
     (check-equal?          (final-state x0) (val 13))      ; altered from starting state
     (check-equal?          (final-state x1) (val 12))      ; altered from starting state
     (check-equal?          (final-state PC) (addr 2024))   ; altered from starting state

@@ -276,7 +276,7 @@
         ; THEN: we halted, return current state
         state
         ; ELSE: we have an instr to run, recurse
-        (eval-riscv-prog (eval-riscv-instr (state (state PC)) state))
+        (eval-riscv-prog-state (eval-riscv-instr (state (state PC)) state))
     )
 )
 

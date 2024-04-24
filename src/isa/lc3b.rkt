@@ -352,7 +352,7 @@
     )       ; /let
 )
 
-(define (eval-riscv-prog-state state)
+(define (eval-lc3b-prog-state state)
     ; Wrapper for eval-lc3b-prog
     ;
     ; Parameters:
@@ -368,7 +368,7 @@
         ; THEN: we halted, return current state
         state
         ; ELSE: we have an instr to run, recurse
-        (eval-lc3b-prog (eval-lc3b-instr (state (state PC)) state))
+        (eval-lc3b-prog-state (eval-lc3b-instr (state (state PC)) state))
     )
 )
 
