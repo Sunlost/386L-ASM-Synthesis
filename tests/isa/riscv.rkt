@@ -62,7 +62,7 @@
     )
 )
 
-(let ([final-x0 (eval-riscv-prog riscv-prog-4)])
+(let ([final-x0 (eval-riscv-prog riscv-prog-4 initial-state)])
     ; (displayln (format "[DEBUG] After  x0: ~a" final_x0))
     (check-equal? final-x0 (bvadd input_x0 input_x0))
 )

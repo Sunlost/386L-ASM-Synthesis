@@ -1,6 +1,6 @@
 #lang rosette/safe
 
-(require rosette/lib/destruct)
+(require rosette/lib/destruct rosette/lib/angelic)
 (require "../state.rkt" "../util.rkt")
 
 (provide (all-defined-out))
@@ -49,21 +49,21 @@
 (struct 3_BR_NZ  (           imm9) #:transparent)
 (struct 3_BR_NZP (           imm9)  #:transparent)
 ;; JUMP
-(struct 3_JMP    (           base) #:transparent) ;;; base -> PC
+(struct 3_JMP    (           src1) #:transparent) ;;; src1 -> PC
 (struct 3_RET    (               ) #:transparent) ;;; R7 -> PC
 (struct 3_JSR    (          imm11) #:transparent) ;;; PC + 4 -> R7, PC + (SXT(imm11) << 1) -> PC
-(struct 3_JSRR   (           base) #:transparent) ;;; PC + 4 -> R7, base -> PC
+(struct 3_JSRR   (           src1) #:transparent) ;;; PC + 4 -> R7, src1 -> PC
 ;; LOAD
-(struct 3_LDB    (base imm6   dst) #:transparent) ;;; SXT(MEM[base + SXT(imm6)]) -> dst
-(struct 3_LDW    (base imm6   dst) #:transparent) ;;; MEM[base + (SXT(imm6) << 1)] -> dst
+(struct 3_LDB    (src1 imm6   dst) #:transparent) ;;; SXT(MEM[src1 + SXT(imm6)]) -> dst
+(struct 3_LDW    (src1 imm6   dst) #:transparent) ;;; MEM[src1 + (SXT(imm6) << 1)] -> dst
 (struct 3_LEA    (     imm9   dst) #:transparent) ;;; MEM[PC + (SXT(imm9) << 1)] -> dst
 ;; SHIFT
 (struct 3_LSHF   (src1 imm4   dst) #:transparent) ;;; src1 << imm4 -> dst
 (struct 3_RSHFL  (src1 imm4   dst) #:transparent) ;;; src1 >> imm4 -> dst
 (struct 3_RSHFA  (src1 imm4   dst) #:transparent) ;;; src1 >>> imm4 -> dst
 ;; STORE
-(struct 3_STB    (base src1  imm6) #:transparent) ;;; src1[7:0] -> MEM[base + SXT(imm6)]
-(struct 3_STW    (base src1  imm6) #:transparent) ;;; src1 -> MEM[base + (SXT(imm6) << 1)]
+(struct 3_STB    (src1 src2  imm6) #:transparent) ;;; src2[7:0] -> MEM[src1 + SXT(imm6)]
+(struct 3_STW    (src1 src2  imm6) #:transparent) ;;; src2 -> MEM[src1 + (SXT(imm6) << 1)]
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------------ SEMANTICS ------------------------------------------ ;
@@ -123,40 +123,54 @@
     (destruct instr
 
     ;; ARITHMETIC
-    [   (3_ADD src1 src2 dst)
+    [   ; ADD  : Add
+        (3_ADD src1 src2 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvadd (state src1) (state src2)))
-        dst)   ]
+        dst)
+    ]
 
-    [   (3_ADDI src1 imm5 dst)
+    [   ; ADDI : Add immediate
+        (3_ADDI src1 imm5 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvadd (state src1) (SXT_16 imm5)))
-        dst)   ]
+        dst)
+    ]
 
 
     ;; BIT MANIPULATION
-    [   (3_AND src1 src2 dst)
+    [   ; AND  : And
+        (3_AND src1 src2 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvand (state src1) (state src2)))
-        dst)   ]
+        dst)
+    ]
 
-    [   (3_ANDI src1 imm5 dst)
+    [   ; ANDI : And immediate
+        (3_ANDI src1 imm5 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvand (state src1) (SXT_16 imm5)))
-        dst)   ]
+        dst)
+    ]
 
-    [   (3_NOT src1 dst)
-        (set-register state dst (bvnot (state src1)))   ]
+    [   ; NOT  : Not
+        (3_NOT src1 dst)
+        (set-register state dst (bvnot (state src1)))
+    ]
 
-    [   (3_XOR src1 src2 dst)
+    [   ; XOR  : Exclusive or
+        (3_XOR src1 src2 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvxor (state src1) (state src2)))
-        dst)   ]
+        dst)
+    ]
 
-    [   (3_XORI src1 imm5 dst)
+    [   ; XORI : Exclusive or immediate
+        (3_XORI src1 imm5 dst)
         (set-lc3b-cond-codes
             (set-register state dst (bvxor (state src1) (SXT_16 imm5)))
-        dst)   ]
+        dst)
+    ]
 
 
     ;; BRANCH (w/ COND)
@@ -258,9 +272,9 @@
 
 
     ;; JUMP
-    [   (3_JMP base)
+    [   (3_JMP src1)
         (begin
-            (set! new_pc (state base))
+            (set! new_pc (state src1))
             (NO_OP state)
         )   ]
 
@@ -276,9 +290,9 @@
             (set-register state x7 (bvadd (state PC) (offset 4)))
         )   ]
 
-    [   (3_JSRR base)
+    [   (3_JSRR src1)
         (begin
-            (set! new_pc (state base))
+            (set! new_pc (state src1))
             (set-register state x7 (bvadd (state PC) (offset 4)))
         )   ]
 
@@ -326,19 +340,19 @@
 
     ;; STORE
     [   ; STB : Store Byte
-        (3_STB base src1 imm6)
-        (let* ([ addr (bvadd    (state base) (SXT_16 imm6)) ]
-               [ data (GET_LOW8 (state src1)) ])
+        (3_STB src1 src2 imm6)
+        (let* ([ addr (bvadd    (state src1) (SXT_16 imm6)) ]
+               [ data (GET_LOW8 (state src2)) ])
         (set-memory state addr data)
         ) ; /let
     ]
 
     [   ; STW : Store word
-        (3_STW base src1 imm6)
-        (let* ([ addr_low  (bvadd     (state base) (L_SH_1 (SXT_16 imm6))) ]
+        (3_STW src1 src2 imm6)
+        (let* ([ addr_low  (bvadd     (state src1) (L_SH_1 (SXT_16 imm6))) ]
                [ addr_high (bvadd     (addr_low) (addr 1)) ]
-               [ data_low  (GET_LOW8  (state src1)) ]
-               [ data_high (GET_HIGH8 (state src1)) ])
+               [ data_low  (GET_LOW8  (state src2)) ]
+               [ data_high (GET_HIGH8 (state src2)) ])
         (set-memory state addr_low  data_low)
         (set-memory state addr_high data_high)
         ) ; /let
@@ -347,6 +361,60 @@
     )       ; /destruct
     new_pc) ; /set-pc
     )       ; /let
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------------ SYMBOLICS ------------------------------------------ ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define (??lc3b_instr)
+    ; Generate a single symbolic LC-3B instruction, which Rosette will try to fill in.
+    ;
+    ; Returns:
+    ;     inst? : A symbolic LC-3b instruction.
+
+    (define-symbolic*  src1 src2 dst reg_val?)
+    ; (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm5    imm5?)
+    ; (define-symbolic*  imm6    imm6?)
+    ; (define-symbolic*  imm9    imm9?)
+    ; (define-symbolic* imm11   imm11?)
+    (choose*
+        ;; ARITHMETIC
+        (3_ADD     src1 src2  dst)
+        (3_ADDI    src1 imm5  dst)
+        ;; BIT MANIPULATION
+        (3_AND     src1 src2  dst)
+        (3_ANDI    src1 imm5  dst)
+        (3_NOT          src1  dst)
+        (3_XOR     src1 src2  dst)
+        (3_XORI    src1 imm5  dst)
+        ; ;; BRANCH (w/ COND)
+        ; (3_BR                imm9)
+        ; (3_BR_N              imm9)
+        ; (3_BR_Z              imm9)
+        ; (3_BR_P              imm9)
+        ; (3_BR_NP             imm9)
+        ; (3_BR_ZP             imm9)
+        ; (3_BR_NZ             imm9)
+        ; (3_BR_NZP            imm9)
+        ; ;; JUMP
+        ; (3_JMP               src1)
+        ; (3_RET                   )
+        ; (3_JSR              imm11)
+        ; (3_JSRR              src1)
+        ; ;; LOAD
+        ; (3_LDB     src1 imm6  dst)
+        ; (3_LDW     src1 imm6  dst)
+        ; (3_LEA          imm9  dst)
+        ; ;; SHIFT
+        ; (3_LSHF    src1 imm4  dst)
+        ; (3_RSHFL   src1 imm4  dst)
+        ; (3_RSHFA   src1 imm4  dst)
+        ; ;; STORE
+        ; (3_STB     src1 src2 imm6)
+        ; (3_STW     src1 src2 imm6)
+    ) ; /choose*
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
@@ -377,7 +445,7 @@
     )     ; /let
 )
 
-(define (eval-lc3b-prog prog)
-    (define final-state (eval-lc3b-prog* prog initial-state))
+(define (eval-lc3b-prog prog state)
+    (define final-state (eval-lc3b-prog* prog state))
     (final-state x0)
 )

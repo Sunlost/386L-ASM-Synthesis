@@ -1,113 +1,9 @@
 #lang rosette/safe
 
-(require racket/string)
 (require rosette/lib/angelic)
 (require "isa/lc3b.rkt" "isa/riscv.rkt" "state.rkt")
 
 (provide rosette-compile)
-
-; ----------------------------------------------------------------------------------------------- ;
-; ------------------------------------- ROSETTE MAPPINGS ---------------------------------------- ;
-; ----------------------------------------------------------------------------------------------- ;
-
-; Set up cross-synthesis functions that use Rosette to create an equivalent program
-; in the other ISA.
-
-(define (??lc3b_instr)
-    ; Generate a single symbolic LC-3B instruction, which Rosette will try to fill in.
-    ;
-    ; Returns:
-    ;     inst : A symbolic LC-3b instruction.
-    (define-symbolic*  src1 reg_val?)
-    (define-symbolic*  src2 reg_val?)
-    (define-symbolic*   dst reg_val?)
-    ; (define-symbolic*  imm4    imm4?)
-    (define-symbolic*  imm5    imm5?)
-    ; (define-symbolic*  imm6    imm6?)
-    ; (define-symbolic*  imm9    imm9?)
-    ; (define-symbolic* imm11   imm11?)
-    ; (define-symbolic*  base reg_val?)
-    (choose*
-        ;; ARITHMETIC
-        (3_ADD     src1 src2  dst)
-        ; (3_ADDI    src1 imm5  dst)
-        ;; BIT MANIPULATION
-        ; (3_AND     src1 src2  dst)
-        ; (3_ANDI    src1 imm5  dst)
-        ; (3_NOT          src1  dst)
-        ; (3_XOR     src1 src2  dst)
-        ; (3_XORI    src1 imm5  dst)
-        ; ;; BRANCH (w/ COND)
-        ; (3_BR                imm9)
-        ; (3_BR_N              imm9)
-        ; (3_BR_Z              imm9)
-        ; (3_BR_P              imm9)
-        ; (3_BR_NP             imm9)
-        ; (3_BR_ZP             imm9)
-        ; (3_BR_NZ             imm9)
-        ; (3_BR_NZP            imm9)
-        ; ;; JUMP
-        ; (3_JMP               base)
-        ; (3_RET                   )
-        ; (3_JSR              imm11)
-        ; (3_JSRR              base)
-        ; ;; LOAD
-        ; (3_LDB     base imm6  dst)
-        ; (3_LDW     base imm6  dst)
-        ; (3_LEA          imm9  dst)
-        ; ;; SHIFT
-        ; (3_LSHF    src1 imm4  dst)
-        ; (3_RSHFL   src1 imm4  dst)
-        ; (3_RSHFA   src1 imm4  dst)
-        ; ;; STORE
-        ; (3_STB     base src1 imm6)
-        ; (3_STW     base src1 imm6)
-    ) ; /choose*
-)
-
-(define (??riscv_instr)
-    ; Generate a single symbolic RISC-V instruction, which Rosette will try to fill in.
-    ;
-    ; Returns:
-    ;     inst : A symbolic RISC-V instruction.
-    (define-symbolic*  src1 reg_val?)
-    (define-symbolic*  src2 reg_val?)
-    (define-symbolic*   dst reg_val?)
-    ; (define-symbolic*  imm4    imm4?)
-    (define-symbolic*  imm5    imm5?)
-    ; (define-symbolic* imm12   imm12?)
-    ; (define-symbolic* imm16   imm16?)
-    (choose*
-        ;; ARITHMETIC
-        (5_ADD  src1  src2   dst)
-        ; (5_ADDI src1  imm5   dst)
-        ;; BIT MANIPULATION
-        ; (5_AND  src1  src2   dst)
-        ; (5_ANDI src1  imm5   dst)
-        ; (5_XOR  src1  src2   dst)
-        ; (5_XORI src1  imm5   dst)
-        ; ;; BRANCH
-        ; (5_BEQ  src1  src2 imm12)
-        ; (5_BNE  src1  src2 imm12)
-        ; (5_BLT  src1  src2 imm12)
-        ; (5_BGE  src1  src2 imm12)
-        ; (5_BLTU src1  src2 imm12)
-        ; (5_BGEU src1  src2 imm12)
-        ; ;; JUMP
-        ; (5_JAL       imm16   dst)
-        ; (5_JALR src1 imm12   dst)
-        ; ;; LOAD
-        ; (5_LB   src1 imm12   dst)
-        ; (5_LH   src1 imm12   dst)
-        ; ;; SHIFT
-        ; (5_SLLI src1  imm4   dst)
-        ; (5_SRLI src1  imm4   dst)
-        ; (5_SRAI src1  imm4   dst)
-        ; ;; STORE
-        ; (5_SB   src1  src2  imm5)
-        ; (5_SH   src1  src2  imm5)
-    ) ; /choose*
-)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; -------------------------------------- ROSETTE HELPERS ---------------------------------------- ;
@@ -174,7 +70,7 @@
 ; --------------------------- ROSETTE SYNTHESIS (LC-3b -> RISC-V) ------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (rosette-compile* source_isa target_isa source_prog n)
+(define (rosette-compile* source_isa target_isa source_prog initial_state n)
     ; Compile an equivalent program in the target ISA, from
     ; a program written in some source ISA, using Rosette.
     ;
@@ -185,6 +81,7 @@
     ;                     {"lc3b", "riscv"}
     ;     source_prog   : The list of instructions representing
     ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the machine.
     ;     n             : The desired number of instructions in
     ;                     the compiled program.
     ;
@@ -212,10 +109,10 @@
     (define M
         (synthesize
             #:forall    (list input_x0)
-            #:guarantee (assert 
+            #:guarantee (assert
                 ( equal?
-                    (target_eval_prog target_prog) 
-                    (source_eval_prog source_prog)
+                    (target_eval_prog target_prog initial_state)
+                    (source_eval_prog source_prog initial_state)
                 )
             ) ; /#:guarantee
         )     ; /synthesize
@@ -230,7 +127,7 @@
     )
 )
 
-(define (rosette-compile-wrapper source_isa target_isa source_prog n)
+(define (rosette-compile-wrapper source_isa target_isa source_prog initial_state n)
     ; Wrapper around rosette-compile*.
     ;
     ; Parameters:
@@ -240,6 +137,7 @@
     ;                     {"lc3b", "riscv"}
     ;     source_prog   : The list of instructions representing
     ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the machine.
     ;     n             : The desired number of instructions in
     ;                     the compiled program.
     ;
@@ -256,6 +154,7 @@
             source_isa
             target_isa
             source_prog
+            initial_state
             n
         )
     )
@@ -267,6 +166,7 @@
             source_isa
             target_isa
             source_prog
+            initial_state
             (+ n 1)
         )
         ; ELSE : Return the compiled program
@@ -275,7 +175,7 @@
 )
 
 
-(define (rosette-compile source_isa target_isa source_prog)
+(define (rosette-compile source_isa target_isa source_prog initial_state)
     ; Compile an equivalent program in the target ISA, from
     ; a program written in some source ISA, using Rosette.
     ;
@@ -286,6 +186,7 @@
     ;                     {"lc3b", "riscv"}
     ;     source_prog   : The list of instructions representing
     ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the machine.
     ;
     ; Returns (if halts):
     ;     target_prog : A list of instructions representing
@@ -300,6 +201,7 @@
         source_isa
         target_isa
         source_prog
+        initial_state
         1
     )
 )

@@ -1,6 +1,6 @@
 #lang rosette/safe
 
-(require rosette/lib/destruct)
+(require rosette/lib/destruct rosette/lib/angelic)
 (require "../state.rkt" "../util.rkt")
 
 (provide (all-defined-out))
@@ -84,25 +84,37 @@
     (destruct instr
 
     ;; ARITHMETIC
-    [   (5_ADD src1 src2 dst)
-        (set-register state dst (bvadd (state src1) (state src2)))   ]
+    [   ; ADD  : Add
+        (5_ADD src1 src2 dst)
+        (set-register state dst (bvadd (state src1) (state src2)))
+    ]
 
-    [   (5_ADDI src1 imm5 dst)
-        (set-register state dst (bvadd (state src1) (SXT_16 imm5)))   ]
+    [   ; ADDI : Add immediate
+        (5_ADDI src1 imm5 dst)
+        (set-register state dst (bvadd (state src1) (SXT_16 imm5)))
+    ]
 
 
     ;; BIT MANIPULATION
-    [   (5_AND src1 src2 dst)
-        (set-register state dst (bvand (state src1) (state src2)))   ]
+    [   ; AND  : And
+        (5_AND src1 src2 dst)
+        (set-register state dst (bvand (state src1) (state src2)))
+    ]
 
-    [   (5_ANDI src1 imm5 dst)
-        (set-register state dst (bvand (state src1) (SXT_16 imm5)))    ]
+    [   ; ANDI : And immediate
+        (5_ANDI src1 imm5 dst)
+        (set-register state dst (bvand (state src1) (SXT_16 imm5)))
+    ]
 
-    [   (5_XOR src1 src2 dst)
-        (set-register state dst (bvxor (state src1) (state src2)))   ]
+    [   ; XOR  : Exclusive or
+        (5_XOR src1 src2 dst)
+        (set-register state dst (bvxor (state src1) (state src2)))
+    ]
 
-    [   (5_XORI src1 imm5 dst)
-        (set-register state dst (bvxor (state src1) (SXT_16 imm5)))   ]
+    [   ; XORI : Exclusive or immediate
+        (5_XORI src1 imm5 dst)
+        (set-register state dst (bvxor (state src1) (SXT_16 imm5)))
+    ]
 
 
     ;; BRANCH (w/ COND)
@@ -257,6 +269,53 @@
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------------ SYMBOLICS ------------------------------------------ ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define (??riscv_instr)
+    ; Generate a single symbolic RISC-V instruction, which Rosette will try to fill in.
+    ;
+    ; Returns:
+    ;     inst? : A symbolic RISC-V instruction.
+
+    (define-symbolic*  src1 src2 dst reg_val?)
+    ; (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm5    imm5?)
+    ; (define-symbolic* imm12   imm12?)
+    ; (define-symbolic* imm16   imm16?)
+    (choose*
+        ;; ARITHMETIC
+        (5_ADD  src1  src2   dst)
+        (5_ADDI src1  imm5   dst)
+        ;; BIT MANIPULATION
+        (5_AND  src1  src2   dst)
+        (5_ANDI src1  imm5   dst)
+        (5_XOR  src1  src2   dst)
+        (5_XORI src1  imm5   dst)
+        ; ;; BRANCH
+        ; (5_BEQ  src1  src2 imm12)
+        ; (5_BNE  src1  src2 imm12)
+        ; (5_BLT  src1  src2 imm12)
+        ; (5_BGE  src1  src2 imm12)
+        ; (5_BLTU src1  src2 imm12)
+        ; (5_BGEU src1  src2 imm12)
+        ; ;; JUMP
+        ; (5_JAL       imm16   dst)
+        ; (5_JALR src1 imm12   dst)
+        ; ;; LOAD
+        ; (5_LB   src1 imm12   dst)
+        ; (5_LH   src1 imm12   dst)
+        ; ;; SHIFT
+        ; (5_SLLI src1  imm4   dst)
+        ; (5_SRLI src1  imm4   dst)
+        ; (5_SRAI src1  imm4   dst)
+        ; ;; STORE
+        ; (5_SB   src1  src2  imm5)
+        ; (5_SH   src1  src2  imm5)
+    ) ; /choose*
+)
+
+; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
@@ -283,7 +342,7 @@
     )     ; /let
 )
 
-(define (eval-riscv-prog prog)
-    (define final-state (eval-riscv-prog* prog initial-state))
+(define (eval-riscv-prog prog state)
+    (define final-state (eval-riscv-prog* prog state))
     (final-state x0)
 )
