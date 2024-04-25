@@ -29,7 +29,7 @@
     (addr 2020)
 )
 
-(let ([final-state (eval-lc3b-state lc3b-prog-1 test-state-1)])
+(let ([final-state (eval-lc3b-prog* lc3b-prog-1 test-state-1)])
     (check-equal?          (final-state x0) (val 12))     ; altered from starting state
     (check-equal?          (final-state x1) (val 5))
     (check-equal?          (final-state x2) (val 5))      ; altered from starting state
@@ -69,7 +69,7 @@
     (addr 2020)
 )
 
-(let ([final-state (eval-lc3b-state lc3b-prog-2 test-state-1)])
+(let ([final-state (eval-lc3b-prog* lc3b-prog-2 test-state-1)])
     (check-equal?          (final-state x0) (val 12))     ; altered from starting state
     (check-equal?          (final-state x1) (val 5))
     (check-equal?          (final-state x2) (val 5))      ; altered from starting state
@@ -114,10 +114,29 @@
     (val 24)
 )
 
-(let ([final-state (eval-lc3b-state lc3b-prog-3 test-state-1)])
+(let ([final-state (eval-lc3b-prog* lc3b-prog-3 test-state-1)])
     (check-equal?          (final-state x0) (val 4))      ; altered from starting state
     (check-equal?          (final-state x7) (addr 16))  ; altered from starting state
     (check-equal?  (final-state COND_CODES) 3_P_True)   ; altered from starting state
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Test 4 -------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define lc3b-prog-4
+    ; Add x0 to itself (i.e. multiply by 2)
+    ;
+    ; This tests that symbolic instructions don't get messed with.
+    (list
+        (3_ADD     x0 x0 x0)     ;  0
+        HLT                      ;  4
+    )
+)
+
+(let ([final-x0 (eval-lc3b-prog lc3b-prog-4)])
+    ; (displayln (format "[DEBUG] After  x0: ~a" final_x0))
+    (check-equal? final-x0 (bvadd input_x0 input_x0))
 )
 
 ) ; /module+ test

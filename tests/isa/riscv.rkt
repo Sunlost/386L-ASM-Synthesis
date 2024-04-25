@@ -42,7 +42,7 @@
     )
 )
 
-(let ([final-state (eval-riscv-state riscv-prog-3 test-state-1)])
+(let ([final-state (eval-riscv-prog* riscv-prog-3 test-state-1)])
     (check-equal?          (final-state x0) (val 13))      ; altered from starting state
     (check-equal?          (final-state x1) (val 12))      ; altered from starting state
     (check-equal?          (final-state PC) (addr 24))     ; altered from starting state
@@ -53,8 +53,27 @@
 ; ----------------------------------------------------------------------------------------------- ;
 
 (define riscv-prog-4
+    ; Add x0 to itself (i.e. multiply by 2)
+    ;
+    ; This tests that symbolic instructions don't get messed with.
     (list
-        ; Program 4 (RISC-V)
+        (5_ADD     x0 x0 x0)     ;  0
+        HLT                      ;  4
+    )
+)
+
+(let ([final-x0 (eval-riscv-prog riscv-prog-4)])
+    ; (displayln (format "[DEBUG] After  x0: ~a" final_x0))
+    (check-equal? final-x0 (bvadd input_x0 input_x0))
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Test 6 -------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define riscv-prog-5
+    (list
+        ; Program 5 (RISC-V)
         (5_XOR x0 x0 x0)         ;  0
         (5_ADDI x0 (imm5 1) x0)  ;  4
         (5_ADDI x0 (imm5 1) x0)  ;  8
@@ -67,7 +86,7 @@
     )
 )
 
-(let ([final-state (eval-riscv-state riscv-prog-4 test-state-1)])
+(let ([final-state (eval-riscv-prog* riscv-prog-5 test-state-1)])
     (check-equal?          (final-state x0) (val 4))   ; altered from starting state
     (check-equal?          (final-state x1) (val 32))  ; altered from starting state
     (check-equal?          (final-state x7) (val 16))  ; altered from starting state

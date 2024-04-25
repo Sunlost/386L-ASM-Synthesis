@@ -49,20 +49,19 @@
     ; set PC
     (set-pc 
     ; set registers
-    (set-register (set-register (set-register (set-register (set-register (set-register (set-register 
+    (set-register (set-register (set-register (set-register (set-register (set-register 
     (set-register 
 
     initial-state 
 
     ; Registers
-    x0 (val 0)) 
-    x1 (val 5)) 
-    x2 (val 7))
-    x3 (addr 1000))
-    x4 (val 0))
-    x5 (addr 1008))
-    x6 (val 0)) 
-    x7 (val 14)) 
+    x1 (val    5)) 
+    x2 (val    7))
+    x3 (val 1000))
+    x4 (val    0))
+    x5 (val 1008))
+    x6 (val    0)) 
+    x7 (val   14)) 
 
     ; PC
     (val 0)) 

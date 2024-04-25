@@ -4,37 +4,72 @@
 (require "common.rkt" "../src/isa/lc3b.rkt" "../src/isa/riscv.rkt" "../src/state.rkt" "../src/rosette.rkt")
 
 ; ----------------------------------------------------------------------------------------------- ;
-; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Rosette ------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
 (module+ test
 
-; TODO: Test LC-3b -> RISC-V translation using Rosette on a few dummy programs and inputs
+
+(define (rosette-testbench test-num lc3b-prog riscv-prog)
+
+    (displayln (format "------------- Test ~a -------------" test-num))
+    (displayln "--------- LC-3B -> RISC-V --------")
+    (let ([ final-prog (rosette-compile "lc3b" "riscv" lc3b-prog) ])
+        (displayln "Old program:")
+        (for/list ([ instr lc3b-prog ])
+            (displayln instr)
+        )
+        (displayln "\nNew program:")
+        (for/list ([ instr final-prog ])
+            (displayln instr)
+        )
+    )
+
+    (displayln "--------- RISC-V -> LC-3B --------")
+    (let ([ final-prog (rosette-compile "riscv" "lc3b" riscv-prog) ])
+        (displayln "Old program:")
+        (for/list ([ instr riscv-prog ])
+            (displayln instr)
+        )
+        (displayln "\nNew program:")
+        (for/list ([ instr final-prog ])
+            (displayln instr)
+        )
+    )
+    (displayln "")
+)
+
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Test 1 -------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+; Add x0 to itself (i.e. multiply by 2)
 
 (define lc3b-prog-1
     (list
-        (3_ADD     x0 x1 x2)     ;  0
-        (3_AND     x1 x2 x2)     ;  4
-        (3_BR_P    (imm11 6))    ;  8
-        (3_JSR     (imm11 4))    ; 12
-        (3_LSHF x3 (imm4  1) x4) ; 16
-        HLT                      ; 20
+        (3_ADD     x0 x0 x0)     ;  0
     )
 )
 
-; TODO: Fix this! It's enlarging forever.
-(define program-one-riscv
-    (rosette-compile "lc3b" "riscv" lc3b-prog-1 test-state-1)
+(define riscv-prog-1
+    (list
+        (5_ADD     x0 x0 x0)     ;  0
+    )
 )
 
-; Print the new program
-(for/list ([instr program-one-riscv])
-    (displayln instr)
+(let ([ final-prog (rosette-compile "lc3b" "riscv" lc3b-prog-1) ])
+    (check-equal? (list-ref final-prog 0) (5_ADD x0 x0 x0))
 )
 
+(let ([ final-prog (rosette-compile "riscv" "lc3b" riscv-prog-1) ])
+    (check-equal? (list-ref final-prog 0) (3_ADD x0 x0 x0))
+)
 
+(rosette-testbench 1 lc3b-prog-1 riscv-prog-1)
 
-; TODO: Test RISC-V -> LC-3b translation using Rosette on a few dummy programs and inputs
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Test 2 -------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
 
 
 ) ; /module+ test

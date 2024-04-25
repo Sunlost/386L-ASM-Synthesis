@@ -26,41 +26,35 @@
 ;             If y undefined, default y = 16.
 
 ;; ARITHMETIC
-(struct 5_ADD  (src1 src2 dst)   #:transparent) ;;; src1 + src2 -> dst
-(struct 5_ADDI (src1 imm5 dst)   #:transparent) ;;; src1 + imm5 -> dst
-
+(struct 5_ADD  (src1  src2   dst) #:transparent) ;;; src1 + src2 -> dst
+(struct 5_ADDI (src1  imm5   dst) #:transparent) ;;; src1 + imm5 -> dst
 ;; BIT MANIPULATION
-(struct 5_AND  (src1 src2 dst)   #:transparent) ;;; src1 & src2 -> dst
-(struct 5_ANDI (src1 imm5 dst)   #:transparent) ;;; src1 & imm5 -> dst
-  ;; 5_NOT: pseudo-instr, XORI w/ imm5 = -1     ;;; src1 ^ -1 -> dst
-(struct 5_XOR  (src1 src2 dst)   #:transparent) ;;; src1 ^ src2 -> dst
-(struct 5_XORI (src1 imm5 dst)   #:transparent) ;;; src1 ^ imm5 -> dst
-
+(struct 5_AND  (src1  src2   dst) #:transparent) ;;; src1 & src2 -> dst
+(struct 5_ANDI (src1  imm5   dst) #:transparent) ;;; src1 & imm5 -> dst
+;; 5_NOT: pseudo-instr, XORI w/ imm5 = -1        ;;; src1 ^ -1 -> dst
+(struct 5_XOR  (src1  src2   dst) #:transparent) ;;; src1 ^ src2 -> dst
+(struct 5_XORI (src1  imm5   dst) #:transparent) ;;; src1 ^ imm5 -> dst
 ;; BRANCH
-(struct 5_BEQ  (src1 src2 imm12) #:transparent)
-(struct 5_BNE  (src1 src2 imm12) #:transparent)
-(struct 5_BLT  (src1 src2 imm12) #:transparent)
-(struct 5_BGE  (src1 src2 imm12) #:transparent)
-(struct 5_BLTU (src1 src2 imm12) #:transparent)
-(struct 5_BGEU (src1 src2 imm12) #:transparent)
-
+(struct 5_BEQ  (src1  src2 imm12) #:transparent)
+(struct 5_BNE  (src1  src2 imm12) #:transparent)
+(struct 5_BLT  (src1  src2 imm12) #:transparent)
+(struct 5_BGE  (src1  src2 imm12) #:transparent)
+(struct 5_BLTU (src1  src2 imm12) #:transparent)
+(struct 5_BGEU (src1  src2 imm12) #:transparent)
 ;; JUMP
-(struct 5_JAL  (     imm16 dst)  #:transparent) ;;; PC + 4 -> dst, imm16 -> PC
-(struct 5_JALR (src1 imm12 dst)  #:transparent) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
-
+(struct 5_JAL  (     imm16   dst) #:transparent) ;;; PC + 4 -> dst, imm16 -> PC
+(struct 5_JALR (src1 imm12   dst) #:transparent) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
 ;; LOAD
-(struct 5_LB   (src1 imm12 dst)  #:transparent) ;;; SXT(MEM[src1 + SXT(imm12)][7:0]) -> dst
-(struct 5_LH   (src1 imm12 dst)  #:transparent) ;;; MEM[src1 + SXT(imm12)][15:0] -> dst
-
+(struct 5_LB   (src1 imm12   dst) #:transparent) ;;; SXT(MEM[src1 + SXT(imm12)][7:0]) -> dst
+(struct 5_LH   (src1 imm12   dst) #:transparent) ;;; MEM[src1 + SXT(imm12)][15:0] -> dst
 ;; SHIFT
-;;; (S)hift {(L)eft, (R)ight} {(A)rithmetic, (L)ogical} (I)mmediate
-(struct 5_SLLI (src1 imm4 dst)   #:transparent) ;;; src1 << imm4 -> dst
-(struct 5_SRLI (src1 imm4 dst)   #:transparent) ;;; src1 >> imm4 -> dst
-(struct 5_SRAI (src1 imm4 dst)   #:transparent) ;;; src1 >>> imm4 -> dst
-
+;; (S)hift {(L)eft, (R)ight} {(A)rithmetic, (L)ogical} (I)mmediate
+(struct 5_SLLI (src1  imm4   dst) #:transparent) ;;; src1 << imm4 -> dst
+(struct 5_SRLI (src1  imm4   dst) #:transparent) ;;; src1 >> imm4 -> dst
+(struct 5_SRAI (src1  imm4   dst) #:transparent) ;;; src1 >>> imm4 -> dst
 ;; STORE
-(struct 5_SB   (src1 src2 imm5)  #:transparent) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
-(struct 5_SH   (src1 src2 imm5)  #:transparent) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
+(struct 5_SB   (src1  src2  imm5) #:transparent) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
+(struct 5_SH   (src1  src2  imm5) #:transparent) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------------ SEMANTICS ------------------------------------------ ;
@@ -266,7 +260,7 @@
 ; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (eval-riscv-state prog state)
+(define (eval-riscv-prog* prog state)
     ; Evaluate a RISC-V system starting from a state.
     ;
     ; Parameters:
@@ -284,20 +278,12 @@
             ; THEN: we halted, return current state
             state
             ; ELSE: we have an instr to run, recurse
-            (eval-riscv-state prog (eval-riscv-instr instr state))
+            (eval-riscv-prog* prog (eval-riscv-instr instr state))
         ) ; /if
     )     ; /let
 )
 
-(define (eval-riscv-prog prog state)
-    ; Evaluate a RISC-V program.
-    ;
-    ; Parameters:
-    ;     prog   : List of RISC-V instructions.
-    ;
-    ; Returns:
-    ;     R[0]   : The return value from the program,
-    ;              stored in R[0].
-
-    (eval-riscv-prog prog state) x0
+(define (eval-riscv-prog prog)
+    (define final-state (eval-riscv-prog* prog initial-state))
+    (final-state x0)
 )

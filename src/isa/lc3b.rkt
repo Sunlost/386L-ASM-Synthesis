@@ -31,45 +31,39 @@
 ;             If y undefined, default y = 16.
 
 ;; ARITHMETIC
-(struct 3_ADD    (src1 src2 dst) #:transparent) ;;; src1 + src2 -> dst
-(struct 3_ADDI   (src1 imm5 dst) #:transparent) ;;; src1 + imm5 -> dst
-
+(struct 3_ADD    (src1 src2   dst) #:transparent) ;;; src1 + src2 -> dst
+(struct 3_ADDI   (src1 imm5   dst) #:transparent) ;;; src1 + imm5 -> dst
 ;; BIT MANIPULATION
-(struct 3_AND    (src1 src2 dst) #:transparent) ;;; src1 & src2 -> dst
-(struct 3_ANDI   (src1 imm5 dst) #:transparent) ;;; src1 & imm5 -> dst
-(struct 3_NOT    (src1 dst     ) #:transparent) ;;; ~src1 -> dst
-(struct 3_XOR    (src1 src2 dst) #:transparent) ;;; src1 ^ src2 -> dst
-(struct 3_XORI   (src1 imm5 dst) #:transparent) ;;; src1 ^ imm5 -> dst
-
+(struct 3_AND    (src1 src2   dst) #:transparent) ;;; src1 & src2 -> dst
+(struct 3_ANDI   (src1 imm5   dst) #:transparent) ;;; src1 & imm5 -> dst
+(struct 3_NOT    (     src1   dst) #:transparent) ;;; ~src1 -> dst
+(struct 3_XOR    (src1 src2   dst) #:transparent) ;;; src1 ^ src2 -> dst
+(struct 3_XORI   (src1 imm5   dst) #:transparent) ;;; src1 ^ imm5 -> dst
 ;; BRANCH (w/ COND)
-(struct 3_BR     (imm9)          #:transparent)
-(struct 3_BR_N   (imm9)          #:transparent)
-(struct 3_BR_Z   (imm9)          #:transparent)
-(struct 3_BR_P   (imm9)          #:transparent)
-(struct 3_BR_NP  (imm9)          #:transparent)
-(struct 3_BR_ZP  (imm9)          #:transparent)
-(struct 3_BR_NZ  (imm9)          #:transparent)
-(struct 3_BR_NZP (imm9)          #:transparent)
-
+(struct 3_BR     (           imm9) #:transparent)
+(struct 3_BR_N   (           imm9) #:transparent)
+(struct 3_BR_Z   (           imm9) #:transparent)
+(struct 3_BR_P   (           imm9) #:transparent)
+(struct 3_BR_NP  (           imm9) #:transparent)
+(struct 3_BR_ZP  (           imm9) #:transparent)
+(struct 3_BR_NZ  (           imm9) #:transparent)
+(struct 3_BR_NZP (           imm9)  #:transparent)
 ;; JUMP
-(struct 3_JMP    (base )         #:transparent) ;;; base -> PC
-(struct 3_RET    ()              #:transparent) ;;; R7 -> PC
-(struct 3_JSR    (imm11)         #:transparent) ;;; PC + 4 -> R7, PC + (SXT(imm11) << 1) -> PC
-(struct 3_JSRR   (base )         #:transparent) ;;; PC + 4 -> R7, base -> PC
-
+(struct 3_JMP    (           base) #:transparent) ;;; base -> PC
+(struct 3_RET    (               ) #:transparent) ;;; R7 -> PC
+(struct 3_JSR    (          imm11) #:transparent) ;;; PC + 4 -> R7, PC + (SXT(imm11) << 1) -> PC
+(struct 3_JSRR   (           base) #:transparent) ;;; PC + 4 -> R7, base -> PC
 ;; LOAD
-(struct 3_LDB    (base imm6 dst) #:transparent) ;;; SXT(MEM[base + SXT(imm6)]) -> dst
-(struct 3_LDW    (base imm6 dst) #:transparent) ;;; MEM[base + (SXT(imm6) << 1)] -> dst
-(struct 3_LEA    (imm9 dst)      #:transparent) ;;; MEM[PC + (SXT(imm9) << 1)] -> dst
-
+(struct 3_LDB    (base imm6   dst) #:transparent) ;;; SXT(MEM[base + SXT(imm6)]) -> dst
+(struct 3_LDW    (base imm6   dst) #:transparent) ;;; MEM[base + (SXT(imm6) << 1)] -> dst
+(struct 3_LEA    (     imm9   dst) #:transparent) ;;; MEM[PC + (SXT(imm9) << 1)] -> dst
 ;; SHIFT
-(struct 3_LSHF   (src1 imm4 dst)  #:transparent) ;;; src1 << imm4 -> dst
-(struct 3_RSHFL  (src1 imm4 dst)  #:transparent) ;;; src1 >> imm4 -> dst
-(struct 3_RSHFA  (src1 imm4 dst)  #:transparent) ;;; src1 >>> imm4 -> dst
-
+(struct 3_LSHF   (src1 imm4   dst) #:transparent) ;;; src1 << imm4 -> dst
+(struct 3_RSHFL  (src1 imm4   dst) #:transparent) ;;; src1 >> imm4 -> dst
+(struct 3_RSHFA  (src1 imm4   dst) #:transparent) ;;; src1 >>> imm4 -> dst
 ;; STORE
-(struct 3_STB    (base src1 imm6) #:transparent) ;;; src1[7:0] -> MEM[base + SXT(imm6)]
-(struct 3_STW    (base src1 imm6) #:transparent) ;;; src1 -> MEM[base + (SXT(imm6) << 1)]
+(struct 3_STB    (base src1  imm6) #:transparent) ;;; src1[7:0] -> MEM[base + SXT(imm6)]
+(struct 3_STW    (base src1  imm6) #:transparent) ;;; src1 -> MEM[base + (SXT(imm6) << 1)]
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------------ SEMANTICS ------------------------------------------ ;
@@ -122,6 +116,7 @@
     ;     - The register file
     ;     - The condition codes
     ;     - The program counter
+    ; (displayln (format "[DEBUG][eval-lc3b-instr] Before x0: ~a" (state x0)))
 
     (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
     (set-pc ; sets PC to new_pc after current instruction has been run
@@ -358,7 +353,7 @@
 ; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (eval-lc3b-state prog state)
+(define (eval-lc3b-prog* prog state)
     ; Evaluate an LC-3b system starting from a state.
     ;
     ; Parameters:
@@ -370,26 +365,19 @@
     ;              after running the program.
 
     (let ([instr (get-instr prog (state PC))])
+        ; (displayln (format "[DEBUG][eval-lc3b-prog] Before x0: ~a instr: ~a" (state x0) instr))
         (if
             ; IF: the instr at MEM[PC] is HLT
             (equal? instr HLT)
             ; THEN: we halted, return current state
             state
             ; ELSE: we have an instr to run, recurse
-            (eval-lc3b-state prog (eval-lc3b-instr instr state))
+            (eval-lc3b-prog* prog (eval-lc3b-instr instr state))
         ) ; /if
     )     ; /let
 )
 
-(define (eval-lc3b-prog prog state)
-    ; Evaluate a LC-3b program.
-    ;
-    ; Parameters:
-    ;     prog : List of LC-3b instructions.
-    ;
-    ; Returns:
-    ;     R[0] : The return value from the program,
-    ;            stored in R[0].
-
-    (eval-lc3b-state prog state) x0
+(define (eval-lc3b-prog prog)
+    (define final-state (eval-lc3b-prog* prog initial-state))
+    (final-state x0)
 )

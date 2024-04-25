@@ -240,7 +240,7 @@
         ; THEN : Return state function with updated map
         (set-state state loc val)
         ; ELSE : Return current state function
-        state
+        #f
     )
 )
 
@@ -267,7 +267,7 @@
         ; THEN : Return state function with updated map
         (set-state state loc val)
         ; ELSE : Return current state function
-        state
+        #f
     )
 )
 
@@ -288,7 +288,7 @@
         ; THEN : Return state function with updated map
         (set-state state PC val)
         ; ELSE : Return current state function
-        state
+        #f
     )
 )
 
@@ -309,7 +309,7 @@
         ; THEN : Return state function with updated map
         (set-state state COND_CODES val)
         ; ELSE : Return current state function
-        state
+        #f
     )
 )
 
@@ -331,7 +331,7 @@
         ; THEN : Return state function with updated map
         (set-state state loc val)
         ; ELSE : Return current state function
-        state
+        #f
     )
 )
 
@@ -487,7 +487,7 @@
 ; Define intial state and some other useful functions.
 
 ; Rosette uses r0 as the input to the program
-(define-symbolic input_r0 reg_val?)
+(define-symbolic input_x0 reg_val?)
 
 (define initial-state
     ; Set the initial state of the state map.
@@ -509,7 +509,7 @@
         (lambda (r) (mem_val 0))
 
         ; Set general-purpose registers
-        x0 input_r0) ; For Rosette, assume input_r0 contains the input already
+        x0 input_x0) ; For Rosette, assume input_x0 contains the input already
         x1 (val 0))
         x2 (val 0))
         x3 (val 0))
