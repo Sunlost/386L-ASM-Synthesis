@@ -73,35 +73,6 @@
 ; Define LC-3b ASM semantics
 ;
 
-(define (set-lc3b-cond-codes state register)
-    ; Set condition code of the current state based on the value inside a register.
-    ;
-    ; Parameters:
-    ;     state    : current state of the LC-3b machine
-    ;     register : destination register of the executed instruction
-    ;
-    ; Returns:
-    ;     state'   : updated state with updated condition codes
-    ;
-    ; Only one condition code {N, Z, P} is active at a time.
-
-    (if
-        ; IF: X[register] is zero
-        (bveq (state register) (bv 0 16))
-        ; THEN: set Z = 1
-        (set-condition-code state 3_Z_True)
-        ; ELSE: check between P/N
-        (if
-            ; IF: X[register] is positive
-            (bvsgt (state register) (bv 0 16))
-            ; THEN: set P = 1
-            (set-condition-code state 3_P_True)
-            ; ELSE: set N = 1
-            (set-condition-code state 3_N_True)
-        )
-    )
-)
-
 (define (eval-lc3b-instr instr state)
     ; Apply the semantics of the given LC-3b instruction to the current state.
     ;
@@ -125,32 +96,24 @@
     ;; ARITHMETIC
     [   ; ADD  : Add
         (3_ADD src1 src2 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvadd (state src1) (state src2)))
-        dst)
+        (set-register-cc state dst (bvadd (state src1) (state src2)))
     ]
 
     [   ; ADDI : Add immediate
         (3_ADDI src1 imm5 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvadd (state src1) (SXT_16 imm5)))
-        dst)
+        (set-register-cc state dst (bvadd (state src1) (SXT_16 imm5)))
     ]
 
 
     ;; BIT MANIPULATION
     [   ; AND  : And
         (3_AND src1 src2 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvand (state src1) (state src2)))
-        dst)
+        (set-register-cc state dst (bvand (state src1) (state src2)))
     ]
 
     [   ; ANDI : And immediate
         (3_ANDI src1 imm5 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvand (state src1) (SXT_16 imm5)))
-        dst)
+        (set-register-cc state dst (bvand (state src1) (SXT_16 imm5)))
     ]
 
     [   ; NOT  : Not
@@ -160,16 +123,12 @@
 
     [   ; XOR  : Exclusive or
         (3_XOR src1 src2 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvxor (state src1) (state src2)))
-        dst)
+        (set-register-cc state dst (bvxor (state src1) (state src2)))
     ]
 
     [   ; XORI : Exclusive or immediate
         (3_XORI src1 imm5 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (bvxor (state src1) (SXT_16 imm5)))
-        dst)
+        (set-register-cc state dst (bvxor (state src1) (SXT_16 imm5)))
     ]
 
 
@@ -300,41 +259,38 @@
     ;; LOAD
     [   ; LDB : Load Byte
         (3_LDB src1 imm6 dst)
-        (set-lc3b-cond-codes
-            (let* ([ addr (bvadd  (state src1) (SXT_16 imm6)) ]
-                   [ data (SXT_16 (state addr))               ])
-            (set-register state dst data)
-            ) ; /let
-        dst)  ; /set-lc3b-condition-codes
+        (let* ([ addr (bvadd  (state src1) (SXT_16 imm6)) ]
+               [ data (SXT_16 (state addr))               ])
+            (set-register-cc state dst data)
+        )
     ]
 
     [   ; LDW : Load Word
         (3_LDW src1 imm6 dst)
-        (set-lc3b-cond-codes
-            (let* ([ addr_low  (bvadd  (state src1) (L_SH_1 (SXT_16 imm6))) ]
-                   [ addr_high (bvadd  addr_low     (addr 1))               ]
-                   [ data      (CAT_16 (state addr_high) (state addr_low))  ])
-            (set-register state dst data)
-            ) ; /let
-        dst)  ; /set-lc3b-condition-codes
+        (let* ([ addr_low  (bvadd  (state src1) (L_SH_1 (SXT_16 imm6))) ]
+               [ addr_high (bvadd  addr_low     (addr 1))               ]
+               [ data      (CAT_16 (state addr_high) (state addr_low))  ])
+            (set-register-cc state dst data)
+        )
     ]
 
     [   ; LEA : Load Effective Address
         (3_LEA imm9 dst)
-        (set-lc3b-cond-codes
-            (set-register state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
-        dst)
+        (set-register-cc state dst (state (bvadd (state PC) (L_SH_1 (SXT_16 imm9)))))
     ]
 
 
     ;; SHIFT
-    [   (3_LSHF src1 imm4 dst)
+    [   ; LSHF : Logical Shift Left
+        (3_LSHF src1 imm4 dst)
         (set-register state dst (bvshl (state src1) (SXT_16 imm4)))   ]
 
-    [   (3_RSHFL src1 imm4 dst)
+    [   ; RSHFL : Logical Shift Right
+        (3_RSHFL src1 imm4 dst)
         (set-register state dst (bvlshr (state src1 (SXT_16 imm4))))   ]
 
-    [   (3_RSHFA src1 imm4 dst)
+    [   ; RSHFA : Arithmetic Shift Right
+        (3_RSHFA src1 imm4 dst)
         (set-register state dst (bvashr (state src1 (SXT_16 imm4))))   ]
 
 
@@ -343,7 +299,7 @@
         (3_STB src1 src2 imm6)
         (let* ([ addr (bvadd    (state src1) (SXT_16 imm6)) ]
                [ data (GET_LOW8 (state src2)) ])
-        (set-memory state addr data)
+            (set-memory state addr data)
         ) ; /let
     ]
 
@@ -353,8 +309,8 @@
                [ addr_high (bvadd     (addr_low) (addr 1)) ]
                [ data_low  (GET_LOW8  (state src2)) ]
                [ data_high (GET_HIGH8 (state src2)) ])
-        (set-memory state addr_low  data_low)
-        (set-memory state addr_high data_high)
+            (set-memory state addr_low  data_low)
+            (set-memory state addr_high data_high)
         ) ; /let
     ]
 
@@ -374,11 +330,11 @@
     ;     inst? : A symbolic LC-3b instruction.
 
     (define-symbolic*  src1 src2 dst reg_val?)
-    ; (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm4    imm4?)
     (define-symbolic*  imm5    imm5?)
-    ; (define-symbolic*  imm6    imm6?)
-    ; (define-symbolic*  imm9    imm9?)
-    ; (define-symbolic* imm11   imm11?)
+    (define-symbolic*  imm6    imm6?)
+    (define-symbolic*  imm9    imm9?)
+    (define-symbolic* imm11   imm11?)
     (choose*
         ;; ARITHMETIC
         (3_ADD     src1 src2  dst)
@@ -389,7 +345,7 @@
         (3_NOT          src1  dst)
         (3_XOR     src1 src2  dst)
         (3_XORI    src1 imm5  dst)
-        ; ;; BRANCH (w/ COND)
+        ;; BRANCH (w/ COND)
         ; (3_BR                imm9)
         ; (3_BR_N              imm9)
         ; (3_BR_Z              imm9)
@@ -398,22 +354,22 @@
         ; (3_BR_ZP             imm9)
         ; (3_BR_NZ             imm9)
         ; (3_BR_NZP            imm9)
-        ; ;; JUMP
+        ;; JUMP
         ; (3_JMP               src1)
         ; (3_RET                   )
         ; (3_JSR              imm11)
         ; (3_JSRR              src1)
-        ; ;; LOAD
-        ; (3_LDB     src1 imm6  dst)
-        ; (3_LDW     src1 imm6  dst)
-        ; (3_LEA          imm9  dst)
-        ; ;; SHIFT
-        ; (3_LSHF    src1 imm4  dst)
-        ; (3_RSHFL   src1 imm4  dst)
-        ; (3_RSHFA   src1 imm4  dst)
-        ; ;; STORE
-        ; (3_STB     src1 src2 imm6)
-        ; (3_STW     src1 src2 imm6)
+        ;; LOAD
+        (3_LDB     src1 imm6  dst)
+        (3_LDW     src1 imm6  dst)
+        (3_LEA          imm9  dst)
+        ;; SHIFT
+        (3_LSHF    src1 imm4  dst)
+        (3_RSHFL   src1 imm4  dst)
+        (3_RSHFA   src1 imm4  dst)
+        ;; STORE
+        (3_STB     src1 src2 imm6)
+        (3_STW     src1 src2 imm6)
     ) ; /choose*
 )
 

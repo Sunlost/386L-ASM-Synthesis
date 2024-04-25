@@ -28,34 +28,36 @@
     ;     1. Location must be of type <addr> (16-bit bit-vector)
     ;     2. Location must NOT be to one of the registers x0 - x7, PC, or COND_CODE.
 
-    (and
-        ; type check
-        (bv? loc)
-        ; length check
-        (equal?
-            (length (bitvector->bits loc))
-            (length (bitvector->bits (addr 0)))
-        )
-        ; value check
-        (not
-            (or
-                (equal? loc x0)
-                (equal? loc x1)
-                (equal? loc x2)
-                (equal? loc x3)
-                (equal? loc x4)
-                (equal? loc x5)
-                (equal? loc x6)
-                (equal? loc x7)
-                (equal? loc PC)
-                (equal? loc COND_CODES)
-            ) ; /or
-        ) ; /not
-    )
+    ; (and
+    ;     ; type check
+    ;     (bv? loc)
+    ;     ; length check
+    ;     (equal?
+    ;         (length (bitvector->bits loc))
+    ;         (length (bitvector->bits (addr 0)))
+    ;     )
+    ;     ; value check
+    ;     (not
+    ;         (or
+    ;             (equal? loc x0)
+    ;             (equal? loc x1)
+    ;             (equal? loc x2)
+    ;             (equal? loc x3)
+    ;             (equal? loc x4)
+    ;             (equal? loc x5)
+    ;             (equal? loc x6)
+    ;             (equal? loc x7)
+    ;             (equal? loc PC)
+    ;             (equal? loc COND_CODES)
+    ;         ) ; /or
+    ;     ) ; /not
+    ; )
+
+    #t
 )
 
 (define (valid-memory-val val)
-    ; Determine if a value a valid memory DATA value.
+    ; Determine if a value a valid memory value.
     ;
     ; Parameters:
     ;     val : The value to check
@@ -65,28 +67,23 @@
     ;     #f : Otherwise
     ;
     ; Rules:
-    ;    1. Value must either be of type:
-    ;        a. <mem_val> (8-bit bit vector)
-    ;        b. An instruction struct.
-    ;
-    ; Notes: When initializing programs, the memory locations containing
-    ;        instructions are assumed to be fixed. This function is used
-    ;        only to set data, not instructions. Instructions should be
-    ;        set using set-state (TODO: Create separate set-instruction)
+    ;    1. Value must be of type <mem_val> (8-bit bit vector)
 
-    (and
-        ; type check
-        (or
-            (bv? val)
-        )
-        ; length check
-        (or
-            (equal?
-                (length (bitvector->bits val))
-                (length (bitvector->bits (mem_val 0)))
-            )
-        ) ; /or
-    )     ; /and
+    ; (and
+    ;     ; type check
+    ;     (or
+    ;         (bv? val)
+    ;     )
+    ;     ; length check
+    ;     (or
+    ;         (equal?
+    ;             (length (bitvector->bits val))
+    ;             (length (bitvector->bits (mem_val 0)))
+    ;         )
+    ;     ) ; /or
+    ; )     ; /and
+
+    #t
 )
 
 (define (valid-register-loc loc)
@@ -105,26 +102,28 @@
 
     ; (displayln (format "[DEBUG][valid-register-loc] loc=~a" loc))
 
-    (and
-        ; type check
-        (bv? loc)
-        ; length check
-        (equal?
-            (length (bitvector->bits loc))
-            (length (bitvector->bits (addr 0)))
-        )
-        ; value check
-        (or
-            (equal? loc x0)
-            (equal? loc x1)
-            (equal? loc x2)
-            (equal? loc x3)
-            (equal? loc x4)
-            (equal? loc x5)
-            (equal? loc x6)
-            (equal? loc x7)
-        )
-    )
+    ; (and
+    ;     ; type check
+    ;     (bv? loc)
+    ;     ; length check
+    ;     (equal?
+    ;         (length (bitvector->bits loc))
+    ;         (length (bitvector->bits (addr 0)))
+    ;     )
+    ;     ; value check
+    ;     (or
+    ;         (equal? loc x0)
+    ;         (equal? loc x1)
+    ;         (equal? loc x2)
+    ;         (equal? loc x3)
+    ;         (equal? loc x4)
+    ;         (equal? loc x5)
+    ;         (equal? loc x6)
+    ;         (equal? loc x7)
+    ;     )
+    ; )
+
+    #t
 )
 
 (define (valid-register-val val)
@@ -140,15 +139,17 @@
     ; Rules:
     ;     1. Value must be of type <val> (16-bit bit-vector)
 
-    (and
-        ; type check
-        (bv? val)
-        ; length check
-        (equal?
-            (length (bitvector->bits val))
-            (length (bitvector->bits (reg_val 0)))
-        )
-    )
+    ; (and
+    ;     ; type check
+    ;     (bv? val)
+    ;     ; length check
+    ;     (equal?
+    ;         (length (bitvector->bits val))
+    ;         (length (bitvector->bits (reg_val 0)))
+    ;     )
+    ; )
+
+    #t
 )
 
 (define (valid-pc-val val)
@@ -164,62 +165,17 @@
     ; Rules:
     ;     1. Value must be of type <addr> (16-bit bit-vector)
 
-    (and
-        ; type check
-        (bv? val)
-        ; length check
-        (equal?
-            (length (bitvector->bits val))
-            (length (bitvector->bits (addr 0)))
-        )
-    )
-)
+    ; (and
+    ;     ; type check
+    ;     (bv? val)
+    ;     ; length check
+    ;     (equal?
+    ;         (length (bitvector->bits val))
+    ;         (length (bitvector->bits (addr 0)))
+    ;     )
+    ; )
 
-(define (valid-condition-code-val val)
-    ; Determine if a value is a valid program counter value.
-    ;
-    ; Parameters:
-    ;     val : The value to check
-    ;
-    ; Returns:
-    ;     #t : If the value is a valid program counter value
-    ;     #f : Otherwise
-    ;
-    ; Rules:
-    ;     1. Value must be of type <imm3> (3-bit bit-vector)
-    ;     2. Value must be EXACTLY one of the following:
-    ;         N: 0b100
-    ;         Z: 0b010
-    ;         P: 0b001
-
-    (and
-        ; type check
-        (bv? val)
-        ; length check
-        (equal?
-            (length (bitvector->bits val))
-            (length (bitvector->bits 3_N_True))
-        )
-        ; value check
-        (or
-            (bveq val 3_N_True)
-            (bveq val 3_Z_True)
-            (bveq val 3_P_True)
-        ) ; /or
-    )     ; /and
-)
-
-(define (valid-instr-val val)
-    ; Determine if a value is a valid instruction value.
-    ;
-    ; Parameters:
-    ;     val : The value to check
-    ;
-    ; Returns:
-    ;     #t : If the value is a valid instruction value
-    ;     #f : Otherwise
-
-    #t ; TODO: Implement stricter checking
+    #t
 )
 
 (define (set-memory state loc val)
@@ -234,14 +190,38 @@
     ;     state' : The updated state mapping function, with
     ;              M[loc] = val, if loc is a valid location.
 
-    (if
-        ; IF  : Loc and value are valid as a memory address / value
-        (and (valid-memory-loc loc) (valid-memory-val val))
-        ; THEN : Return state function with updated map
-        (set-state state loc val)
-        ; ELSE : Return current state function
-        #f
-    )
+    (set-state state loc val)
+
+    ; (if
+    ;     ; IF  : Loc and value are valid as a memory address / value
+    ;     (and (valid-memory-loc loc) (valid-memory-val val))
+    ;     ; THEN : Return state function with updated map
+    ;     (set-state state loc val)
+    ;     ; ELSE : Return current state function
+    ;     #f
+    ; )
+)
+
+(define (set-register-cc state loc val)
+    ; Wrapper around set-register that also sets
+    ; condition codes.
+    ;
+    ; Parameters:
+    ;     state    : current state of the machine
+    ;     loc      : location of the register to be updated
+    ;                and to use to update condition codes
+    ;     val      : value to be stored in the register
+    ;
+    ; Returns:
+    ;     state'   : updated state with updated condition codes
+    ;
+    ; Exactly one condition code {N, Z, P} is active at any time.
+    (let ([ new-state (set-register state loc val) ])
+        (cond [ (bveq  (state loc) (bv 0 16)) (set-state new-state COND_CODES Z_True) ]
+              [ (bvsgt (state loc) (bv 0 16)) (set-state new-state COND_CODES P_True) ]
+              [ else                          (set-state new-state COND_CODES N_True) ]
+        ) ; /cond
+    ) ; /let
 )
 
 (define (set-register state loc val)
@@ -261,14 +241,16 @@
     ;     Setting the PC and condition codes should
     ;     be done using their respective functions below.
 
-    (if
-        ; IF  : Loc and value are valid as a register number / value
-        (and (valid-register-loc loc) (valid-register-val val))
-        ; THEN : Return state function with updated map
-        (set-state state loc val)
-        ; ELSE : Return current state function
-        #f
-    )
+    (set-state state loc val)
+
+    ; (if
+    ;     ; IF  : Loc and value are valid as a register number / value
+    ;     (and (valid-register-loc loc) (valid-register-val val))
+    ;     ; THEN : Return state function with updated map
+    ;     (set-state state loc val)
+    ;     ; ELSE : Return current state function
+    ;     #f
+    ; )
 )
 
 (define (set-pc state val)
@@ -282,17 +264,19 @@
     ;     state' : The updated state mapping function, with
     ;              PC = val.
 
-    (if
-        ; IF  : val is a valid PC
-        (valid-pc-val val)
-        ; THEN : Return state function with updated map
-        (set-state state PC val)
-        ; ELSE : Return current state function
-        #f
-    )
+    ; (if
+    ;     ; IF  : val is a valid PC
+    ;     (valid-pc-val val)
+    ;     ; THEN : Return state function with updated map
+    ;     (set-state state PC val)
+    ;     ; ELSE : Return current state function
+    ;     #f
+    ; )
+
+    (set-state state PC val)
 )
 
-(define (set-condition-code state val)
+(define (set-cc state val)
     ; Set the value of the condition code register.
     ;
     ; Parameters:
@@ -303,65 +287,12 @@
     ;     state' : The updated state mapping function, with
     ;              COND_CODES = val.
 
-    (if
-        ; IF  : val is a valid condition code
-        (valid-condition-code-val val)
-        ; THEN : Return state function with updated map
-        (set-state state COND_CODES val)
-        ; ELSE : Return current state function
-        #f
-    )
-)
+    (cond [(equal? val N_True) (set-state state COND_CODES N_True)]
+          [(equal? val Z_True) (set-state state COND_CODES Z_True)]
+          [(equal? val P_True) (set-state state COND_CODES P_True)]
+          [else state] )
 
-(define (set-instr state loc val)
-    ; Map an instruction to a particular memory address.
-    ;
-    ; Parameters:
-    ;     state  : The current state mapping function
-    ;     loc    : The memory address to set the instruction to
-    ;     val    : The instruction to store
-    ;
-    ; Returns:
-    ;     state' : The updated state mapping function, with
-    ;              M[loc] = instr, if loc is a valid location.
-
-    (if
-        ; IF  : Loc and value are valid as a memory address / value
-        (and (valid-memory-loc loc) (valid-instr-val val))
-        ; THEN : Return state function with updated map
-        (set-state state loc val)
-        ; ELSE : Return current state function
-        #f
-    )
-)
-
-(define (set-instrs state loc instrs)
-    ; Map a list of instructions linearly onto the
-    ; memory address space, starting at loc.
-    ;
-    ; Parameters:
-    ;     state  : The current state mapping function
-    ;     loc    : The memory address to start storing instructions
-    ;     instrs : The list of instructions to store
-    ;
-    ; Returns:
-    ;     state' : The updated state mapping function, with
-    ;              M[loc + i] = instrs[i], for all i in instrs.
-    ;
-    ; This is done recursively.
-
-    (if
-        ; IF   : instrs is not empty
-        (not (null? instrs))
-        ; THEN : Recursively set the first instruction, and then the rest
-        (set-instrs
-            (set-instr state loc (car instrs)) ; Set this instruction
-            (bvadd loc (addr 4))               ; loc += 4
-            (cdr instrs)
-        )
-        ; ELSE : Return the state as is
-        state
-    )
+    ; (set-state state COND_CODES val)
 )
 
 (define (set-state state loc val)
@@ -398,7 +329,7 @@
     ;     instr : The instruction at the memory location pointed to by PC.
     ;             If the PC goes out of bounds, return HLT.
     ;
-    ; This function works by converting the bitvector PC into 
+    ; This function works by converting the bitvector PC into
     ; an integer list index. Our state assumes that PCs are
     ; four bytes apart. So, we do the following:
     ;
@@ -407,19 +338,8 @@
     ; 3. Return the instruction at that index
 
     (let ([index (/ (bitvector->natural pc) 4)])
-
-        ; (displayln (format "[DEBUG][get-instr] pc=~a index=~a" pc index))
-        (if
-            ; IF  : Index is within bounds
-            (and
-                (>= index 0)
-                (<  index (length prog))
-            )
-            ; THEN : Return the instruction at that index
-            (list-ref prog index)
-            ; ELSE : Return HLT
-            HLT
-        )
+        (cond [ (>= index (length prog)) HLT ]
+              [ else   (list-ref prog index) ])
     ) ; /let
 
 )
@@ -445,9 +365,9 @@
 (define (imm12    val) (bv val 12))
 ; no imm16 since that's just an addr in all places used
 
-(define       3_N_True (bv #b100 3)) ; Condition codes (LC-3B only)
-(define       3_Z_True (bv #b010 3))
-(define       3_P_True (bv #b001 3))
+(define       N_True (bv #b100 3)) ; Condition codes (LC-3B only)
+(define       Z_True (bv #b010 3))
+(define       P_True (bv #b001 3))
 
 ; Symbolic values for Rosette
 (define reg_val? (bitvector 16))
@@ -498,7 +418,7 @@
     ;    - COND_CODES  : Z           ( 3b)
     ;    - Elswehere   : (mem_val 0) ( 8b)
 
-    (set-condition-code
+    (set-cc
     ; for PC
     (set-pc
     ; for 8 general-purpose registers
@@ -522,7 +442,7 @@
         (val 0))
 
         ; Set condition code
-        3_Z_True)
+        Z_True)
 )
 
 (define (NO_OP state)

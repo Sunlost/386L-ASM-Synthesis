@@ -9,51 +9,70 @@
 
 (module+ test
 
-(define (rosette-testbench test-num lc3b-prog riscv-prog initial_state)
-    ; Testbench function for trying out and running the Roestte
-    ; compiler for LC-3b <-> RISC-V compilation.
+(define (test-rosette-compile source_isa target_isa source_prog initial_state)
+    ; Test the rosette-compile function.
     ;
     ; Parameters:
-    ;     test-num      : The test number
-    ;     lc3b-prog     : LC-3b program
-    ;     riscv-prog    : RISC-V program
-    ;                     (ideally, semantically equivalent to
-    ;                      the LC-3b program)
+    ;     source_isa    : The source ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     target_isa    : The target ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     source_prog   : Source program
     ;     initial_state : The initial state of the machine.
     ;
     ; Returns:
-    ;     Nothing
+    ;     target_prog   : The compiled program.
     ;
 
-    (displayln "")
-    (displayln (format "--------------- Test ~a ---------------" test-num))
-    (displayln "----------- LC-3B -> RISC-V ----------")
-    (let ([ final-prog (rosette-compile "lc3b" "riscv" lc3b-prog initial_state) ])
-        (displayln "")
-        (displayln "Old program:")
-        (for/list ([ instr lc3b-prog ])
+    (displayln
+        (format "----------- ~a -> ~a ----------" source_isa target_isa)
+    )
+    (let ([ target_prog (
+            rosette-compile source_isa target_isa source_prog initial_state
+        ) ])
+        (displayln "\nOld program:")
+        (for/list ([ instr source_prog ])
             (displayln instr)
         )
         (displayln "\nNew program:")
-        (for/list ([ instr final-prog ])
+        (for/list ([ instr target_prog ])
             (displayln instr)
         )
+        (displayln "")
+        target_prog
     )
-    (displayln "")
+)
 
-    (displayln "----------- RISC-V -> LC-3B ----------")
-    (let ([ final-prog (rosette-compile "riscv" "lc3b" riscv-prog initial_state) ])
-        (displayln "")
-        (displayln "Old program:")
-        (for/list ([ instr riscv-prog ])
+(define (test-rosette-shrink isa prog initial_state)
+    ; Test the rosette-shrink function.
+    ;
+    ; Parameters:
+    ;     isa           : The ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     prog          : The list of instructions representing
+    ;                     the program in the ISA.
+    ;     initial_state : The initial state of the machine.
+    ;
+    ; Returns:
+    ;     prog'         : The shrunk program.
+    ;
+    (displayln
+        (format "----------- Shrink ~a ----------" isa)
+    )
+    (let ([ shrunk-prog (
+            rosette-shrink isa prog initial_state
+        ) ])
+        (displayln "\nOld program:")
+        (for/list ([ instr prog ])
             (displayln instr)
         )
         (displayln "\nNew program:")
-        (for/list ([ instr final-prog ])
+        (for/list ([ instr shrunk-prog ])
             (displayln instr)
         )
+        (displayln "")
+        shrunk-prog
     )
-    (displayln "")
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
@@ -75,15 +94,15 @@
     )
 )
 
-(let ([ final-prog (rosette-compile "lc3b" "riscv" lc3b-prog-1 initial-state) ])
+(displayln "")
+(displayln "--------------- Test 1 ---------------")
+(let ([ final-prog (test-rosette-compile "lc3b" "riscv" lc3b-prog-1 initial-state) ])
     (check-equal? (list-ref final-prog 0) (5_ADD x0 x0 x0))
 )
-
-(let ([ final-prog (rosette-compile "riscv" "lc3b" riscv-prog-1 initial-state) ])
+(let ([ final-prog (test-rosette-compile "riscv" "lc3b" riscv-prog-1 initial-state) ])
     (check-equal? (list-ref final-prog 0) (3_ADD x0 x0 x0))
 )
 
-(rosette-testbench 1 lc3b-prog-1 riscv-prog-1 initial-state)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------- Test 2 -------------------------------------------------- ;
@@ -106,12 +125,17 @@
     )
 )
 
+; No rigorous checks for this test, because
+; there are multiple solutions with minimal
+; instructions.
 
-; Not performing checks on one rigorously, since
-; there are multiple optimal solutions with
-; minimal instructions.
-
-(rosette-testbench 2 lc3b-prog-2 riscv-prog-2 initial-state)
+(displayln "\n--------------- Test 2 ---------------")
+(let ([ final-prog (test-rosette-compile "lc3b" "riscv"  lc3b-prog-2 initial-state) ])
+    (check-true #t)
+)
+(let ([ final-prog (test-rosette-compile "riscv" "lc3b" riscv-prog-2 initial-state) ])
+    (check-true #t)
+)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ------------------------------------- Test 3 -------------------------------------------------- ;
@@ -142,14 +166,45 @@
     )
 )
 
-(let ([ final-prog (rosette-compile "lc3b" "riscv" lc3b-prog-3 initial-state) ])
+(displayln "\n--------------- Test 3 ---------------")
+(let ([ final-prog (test-rosette-compile  "lc3b" "riscv"  lc3b-prog-3 initial-state) ])
+    (check-equal? (list-ref final-prog 0) (5_ANDI x0 (imm5 10) x0))
+)
+(let ([ final-prog (test-rosette-compile "riscv"  "lc3b" riscv-prog-3 initial-state) ])
+    (check-equal? (list-ref final-prog 0) (3_ANDI x0 (imm5 10) x0))
+)
+(let ([ final-prog (test-rosette-shrink "lc3b" lc3b-prog-3 initial-state) ])
+    (check-equal? (list-ref final-prog 0) (3_ANDI x0 (imm5 10) x0))
+)
+(let ([ final-prog (test-rosette-shrink "riscv" riscv-prog-3 initial-state) ])
     (check-equal? (list-ref final-prog 0) (5_ANDI x0 (imm5 10) x0))
 )
 
-(let ([ final-prog (rosette-compile "riscv" "lc3b" riscv-prog-3 initial-state) ])
-    (check-equal? (list-ref final-prog 0) (3_ANDI x0 (imm5 10) x0))
+; ----------------------------------------------------------------------------------------------- ;
+; ------------------------------------- Test 4 -------------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+; RISC-V does not have a NOT instruction. Can Rosette figure out
+; that XORI with an immediate of -1 can do the same thing?
+
+(define lc3b-prog-4
+    (list
+        (3_NOT x0 x0) ;  0
+    )
 )
 
-(rosette-testbench 3 lc3b-prog-3 riscv-prog-3 initial-state)
+(define riscv-prog-4
+    (list
+        (5_XORI x0 (imm5 -1) x0) ;  0
+    )
+)
+
+(displayln "\n--------------- Test 4 ---------------")
+(let ([ final-prog (test-rosette-compile  "lc3b" "riscv"  lc3b-prog-4 initial-state) ])
+    (check-equal? (list-ref final-prog 0) (5_XORI x0 (imm5 -1) x0))
+)
+(let ([ final-prog (test-rosette-compile "riscv"  "lc3b" riscv-prog-4 initial-state) ])
+    (check-equal? (list-ref final-prog 0) (3_NOT x0 x0))
+)
 
 ) ; /module+ test

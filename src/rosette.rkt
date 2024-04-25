@@ -3,7 +3,7 @@
 (require rosette/lib/angelic)
 (require "isa/lc3b.rkt" "isa/riscv.rkt" "state.rkt")
 
-(provide rosette-compile)
+(provide rosette-compile rosette-shrink)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; -------------------------------------- ROSETTE HELPERS ---------------------------------------- ;
@@ -203,5 +203,33 @@
         source_prog
         initial_state
         1
+    )
+)
+
+(define (rosette-shrink isa prog initial_state)
+    ; Compile an equvialent program with the same or fewer
+    ; instructions in some ISA, using Rosette.
+    ;
+    ; Parameters:
+    ;     isa           : The ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     prog          : The list of instructions representing
+    ;                     the program in the ISA.
+    ;     initial_state : The initial state of the machine.
+    ;
+    ; Returns:
+    ;     prog'       : A list of instructions representing
+    ;                   a semantically-equivalent program
+    ;                   in the same ISA, with the same or
+    ;                   fewer instructions.
+    ;
+    ; This program uses rosette-compile, but with the
+    ; source and target ISA being the same.
+
+    (rosette-compile
+        isa
+        isa
+        prog
+        initial_state
     )
 )

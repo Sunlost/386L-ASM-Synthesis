@@ -81,7 +81,7 @@
      ; v  x7 should NOT be changed from starting state  v
     (check-equal?          (final-state x7) (test-state-1 x7))
     (check-equal?          (final-state PC) (addr 20))    ; altered from starting state
-    (check-equal?  (final-state COND_CODES) 3_P_True)     ; altered from starting state
+    (check-equal?  (final-state COND_CODES) P_True)     ; altered from starting state
     (check-equal? (final-state (addr 1000)) (mem_val 32))
     (check-equal? (final-state (addr 1008)) (mem_val 0))
     (check-equal? (final-state (addr 1016)) (mem_val 0))
@@ -117,7 +117,7 @@
 (let ([final-state (eval-lc3b-prog* lc3b-prog-3 test-state-1)])
     (check-equal?          (final-state x0) (val 4))      ; altered from starting state
     (check-equal?          (final-state x7) (addr 16))  ; altered from starting state
-    (check-equal?  (final-state COND_CODES) 3_P_True)   ; altered from starting state
+    (check-equal?  (final-state COND_CODES) P_True)   ; altered from starting state
 )
 
 ; ----------------------------------------------------------------------------------------------- ;

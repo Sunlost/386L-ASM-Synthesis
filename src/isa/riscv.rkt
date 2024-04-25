@@ -232,13 +232,16 @@
 
 
     ;; SHIFT
-    [   (5_SLLI src1 imm4 dst)
+    [   ; SLLI : Shift Left Logical Immediate
+        (5_SLLI src1 imm4 dst)
         (set-register state dst (bvshl (state src1) (SXT_16 imm4)))   ]
 
-    [   (5_SRLI src1 imm4 dst)
+    [   ; SRLI : Shift Right Logical Immediate
+        (5_SRLI src1 imm4 dst)
         (set-register state dst (bvlshr (state src1 (SXT_16 imm4))))    ]
 
-    [   (5_SRAI src1 imm4 dst)
+    [   ; SRAI : Shift Right Arithmetic Immediate
+        (5_SRAI src1 imm4 dst)
         (set-register state dst (bvashr (state src1 (SXT_16 imm4))))   ]
 
 
@@ -279,10 +282,10 @@
     ;     inst? : A symbolic RISC-V instruction.
 
     (define-symbolic*  src1 src2 dst reg_val?)
-    ; (define-symbolic*  imm4    imm4?)
+    (define-symbolic*  imm4    imm4?)
     (define-symbolic*  imm5    imm5?)
-    ; (define-symbolic* imm12   imm12?)
-    ; (define-symbolic* imm16   imm16?)
+    (define-symbolic* imm12   imm12?)
+    (define-symbolic* imm16   imm16?)
     (choose*
         ;; ARITHMETIC
         (5_ADD  src1  src2   dst)
@@ -303,15 +306,15 @@
         ; (5_JAL       imm16   dst)
         ; (5_JALR src1 imm12   dst)
         ; ;; LOAD
-        ; (5_LB   src1 imm12   dst)
-        ; (5_LH   src1 imm12   dst)
+        (5_LB   src1 imm12   dst)
+        (5_LH   src1 imm12   dst)
         ; ;; SHIFT
-        ; (5_SLLI src1  imm4   dst)
-        ; (5_SRLI src1  imm4   dst)
-        ; (5_SRAI src1  imm4   dst)
+        (5_SLLI src1  imm4   dst)
+        (5_SRLI src1  imm4   dst)
+        (5_SRAI src1  imm4   dst)
         ; ;; STORE
-        ; (5_SB   src1  src2  imm5)
-        ; (5_SH   src1  src2  imm5)
+        (5_SB   src1  src2  imm5)
+        (5_SH   src1  src2  imm5)
     ) ; /choose*
 )
 
