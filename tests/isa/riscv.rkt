@@ -28,28 +28,24 @@
 (define riscv-prog-3
     (list
         ; Program 3 (RISC-V)
-        (5_XOR x0 x0 x0)          ; 2000
-        (5_XOR x1 x1 x1)          ; 2004
-        (5_ADDI x0 (imm5 12) x0)  ; 2008
-        (5_ADDI x1 (imm5 15) x1)  ; 2012
+        (5_XOR x0 x0 x0)          ;  0
+        (5_XOR x1 x1 x1)          ;  4
+        (5_ADDI x0 (imm5 12) x0)  ;  8
+        (5_ADDI x1 (imm5 15) x1)  ; 12
         ; L1.
-        (5_BGE x1 x0 (imm12 12))  ; 2016: BGEU x1 x0 .L2
-        (5_ADDI x0 (imm5 1) x0)   ; 2020
-        HLT                       ; 2024
+        (5_BGE x1 x0 (imm12 12))  ; 16: BGEU x1 x0 .L2
+        (5_ADDI x0 (imm5 1) x0)   ; 20
+        HLT                       ; 24
         ; L2.
-        (5_AND x0 x1 x1)          ; 2028
-        (5_BEQ x0 x1 (imm12 -12)) ; 2032: BEQ  x0 x1 .L1
+        (5_AND x0 x1 x1)          ; 28
+        (5_BEQ x0 x1 (imm12 -12)) ; 32: BEQ  x0 x1 .L1
     )
 )
 
-(define riscv-test-3
-    (set-instrs test-state-1 (addr 2000) riscv-prog-3)
-)
-
-(let ([final-state (eval-riscv-prog-state riscv-test-3)])
+(let ([final-state (eval-riscv-state riscv-prog-3 test-state-1)])
     (check-equal?          (final-state x0) (val 13))      ; altered from starting state
     (check-equal?          (final-state x1) (val 12))      ; altered from starting state
-    (check-equal?          (final-state PC) (addr 2024))   ; altered from starting state
+    (check-equal?          (final-state PC) (addr 24))     ; altered from starting state
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
@@ -59,26 +55,22 @@
 (define riscv-prog-4
     (list
         ; Program 4 (RISC-V)
-        (5_XOR x0 x0 x0)         ; 2000
-        (5_ADDI x0 (imm5 1) x0)  ; 2004
-        (5_ADDI x0 (imm5 1) x0)  ; 2008
-        (5_JAL (addr 2024) x7)   ; 2012
-        (5_ADDI x0 (imm5 1) x0)  ; 2016
-        HLT                      ; 2020
+        (5_XOR x0 x0 x0)         ;  0
+        (5_ADDI x0 (imm5 1) x0)  ;  4
+        (5_ADDI x0 (imm5 1) x0)  ;  8
+        (5_JAL    (addr 24) x7)  ; 12
+        (5_ADDI x0 (imm5 1) x0)  ; 16
+        HLT                      ; 20
 
-        (5_ADDI x0 (imm5 1) x0)  ; 2024
-        (5_JALR x7 (imm12 0) x1) ; 2028: return
+        (5_ADDI x0 (imm5 1) x0)  ; 24
+        (5_JALR x7 (imm12 0) x1) ; 28: return
     )
 )
 
-(define riscv-test-4
-    (set-instrs test-state-1 (addr 2000) riscv-prog-4)
-)
-
-(let ([final-state (eval-riscv-prog-state riscv-test-4)])
-    (check-equal?          (final-state x0) (val 4))      ; altered from starting state
-    (check-equal?          (final-state x1) (addr 2032))  ; altered from starting state
-    (check-equal?          (final-state x7) (addr 2016))  ; altered from starting state
+(let ([final-state (eval-riscv-state riscv-prog-4 test-state-1)])
+    (check-equal?          (final-state x0) (val 4))   ; altered from starting state
+    (check-equal?          (final-state x1) (val 32))  ; altered from starting state
+    (check-equal?          (final-state x7) (val 16))  ; altered from starting state
 )
 
 ) ; /module+ test

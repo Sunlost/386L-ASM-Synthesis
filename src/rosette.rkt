@@ -13,9 +13,6 @@
 ; Set up cross-synthesis functions that use Rosette to create an equivalent program
 ; in the other ISA.
 
-; The symbolic input to the program (stored in R0)
-(define-symbolic input_r0 reg_val?)
-
 (define (??lc3b_instr)
     ; Generate a single symbolic LC-3B instruction, which Rosette will try to fill in.
     ;
@@ -177,19 +174,20 @@
 ; --------------------------- ROSETTE SYNTHESIS (LC-3b -> RISC-V) ------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (rosette-compile* source_isa target_isa source_prog n)
+(define (rosette-compile* source_isa target_isa source_prog initial_state n)
     ; Compile an equivalent program in the target ISA, from
     ; a program written in some source ISA, using Rosette.
     ;
     ; Parameters:
-    ;     source_isa  : The source ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     target_isa  : The target ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     source_prog : The list of instructions representing
-    ;                   the program in the source ISA.
-    ;     n           : The desired number of instructions in
-    ;                   the compiled program.
+    ;     source_isa    : The source ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     target_isa    : The target ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     source_prog   : The list of instructions representing
+    ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the system
+    ;     n             : The desired number of instructions in
+    ;                     the compiled program.
     ;
     ; Returns (if satisfiable):
     ;     target_prog : A list of instructions representing
@@ -203,18 +201,26 @@
     ; x0 upon reaching a HLT instruction.
 
     (displayln
-        (format "[DEBUG][rosette-compile] ~a -> ~a n = ~a" source_isa target_isa n)
+        (format "[rosette-compile] ~a -> ~a n = ~a" source_isa target_isa n)
+    )
+    (displayln
+        (format "[DEBUG] prog = ~a" source_prog)
     )
 
     (define target_prog      (gen-list-instr-n (get-isa target_isa) n))
-    (define target_eval_prog (get-eval-prog    target_isa))
-    (define source_eval_prog (get-eval-prog    source_isa))
+    (define target_eval_prog (get-eval-prog target_isa))
+    (define source_eval_prog (get-eval-prog source_isa))
     (define M
         (synthesize
             #:forall    (list input_r0)
-            #:guarantee (assert (= (target_eval_prog target_prog) (source_eval_prog source_prog)))
-        ) ; /synthesize
-    )     ; /define
+            #:guarantee (assert 
+                ( equal?
+                    (target_eval_prog target_prog initial_state) 
+                    (source_eval_prog source_prog initial_state)
+                )
+            ) ; /#:guarantee
+        )     ; /synthesize
+    )         ; /define
     (if
         ; IF   : Satisfiable
         (sat? M)
@@ -225,18 +231,19 @@
     )
 )
 
-(define (rosette-compile-wrapper source_isa target_isa source_prog n)
+(define (rosette-compile-wrapper source_isa target_isa source_prog initial_state n)
     ; Wrapper around rosette-compile*.
     ;
     ; Parameters:
-    ;     source_isa  : The source ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     target_isa  : The target ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     source_prog : The list of instructions representing
-    ;                   the program in the source ISA.
-    ;     n           : The desired number of instructions in
-    ;                   the compiled program.
+    ;     source_isa    : The source ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     target_isa    : The target ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     source_prog   : The list of instructions representing
+    ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the system
+    ;     n             : The desired number of instructions in
+    ;                     the compiled program.
     ;
     ; Returns (if halts):
     ;     target_prog : A list of instructions representing
@@ -251,6 +258,7 @@
             source_isa
             target_isa
             source_prog
+            initial_state
             n
         )
     )
@@ -262,6 +270,7 @@
             source_isa
             target_isa
             source_prog
+            initial_state
             (+ n 1)
         )
         ; ELSE : Return the compiled program
@@ -270,17 +279,18 @@
 )
 
 
-(define (rosette-compile source_isa target_isa source_prog)
+(define (rosette-compile source_isa target_isa source_prog initial_state)
     ; Compile an equivalent program in the target ISA, from
     ; a program written in some source ISA, using Rosette.
     ;
     ; Parameters:
-    ;     source_isa  : The source ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     target_isa  : The target ISA name as a string.
-    ;                   {"lc3b", "riscv"}
-    ;     source_prog : The list of instructions representing
-    ;                   the program in the source ISA.
+    ;     source_isa    : The source ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     target_isa    : The target ISA name as a string.
+    ;                     {"lc3b", "riscv"}
+    ;     source_prog   : The list of instructions representing
+    ;                     the program in the source ISA.
+    ;     initial_state : The initial state of the system
     ;
     ; Returns (if halts):
     ;     target_prog : A list of instructions representing
@@ -295,6 +305,7 @@
         source_isa
         target_isa
         source_prog
+        initial_state
         1
     )
 )

@@ -233,7 +233,7 @@
                 ; IF: (N = 0)
                 (bveq (extract 2 2 (state COND_CODES)) (bv 0 1))
                 ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
+                (set! new_pc (+ (state PC) (TO_INT (L_SH_1 (SXT_16 imm9)))))
                 ; ELSE: do nothing, return current state
                 (void)
             ) ; /if
@@ -358,35 +358,38 @@
 ; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (eval-lc3b-prog-state state)
-    ; Wrapper for eval-lc3b-prog
+(define (eval-lc3b-state prog state)
+    ; Evaluate an LC-3b system starting from a state.
     ;
     ; Parameters:
+    ;     prog   : List of LC-3b instructions.
     ;     state  : Current state of the LC-3b machine.
     ;
     ; Returns:
     ;     state' : The final state of the LC-3b machine
     ;              after running the program.
 
-    (if
-        ; IF: the instr at MEM[PC] is HLT
-        (equal? (state (state PC)) HLT)
-        ; THEN: we halted, return current state
-        state
-        ; ELSE: we have an instr to run, recurse
-        (eval-lc3b-prog-state (eval-lc3b-instr (state (state PC)) state))
-    )
+    (let ([instr (get-instr prog (state PC))])
+        (if
+            ; IF: the instr at MEM[PC] is HLT
+            (equal? instr HLT)
+            ; THEN: we halted, return current state
+            state
+            ; ELSE: we have an instr to run, recurse
+            (eval-lc3b-state prog (eval-lc3b-instr instr state))
+        ) ; /if
+    )     ; /let
 )
 
-(define (eval-lc3b-prog initial_state)
-    ; Evaluate a LC-3b program starting from the given state.
+(define (eval-lc3b-prog prog state)
+    ; Evaluate a LC-3b program.
     ;
     ; Parameters:
-    ;     initial_state : Initial state of the LC-3b machine.
+    ;     prog : List of LC-3b instructions.
     ;
     ; Returns:
     ;     R[0] : The return value from the program,
     ;            stored in R[0].
 
-    (eval-lc3b-prog-state initial_state) x0
+    (eval-lc3b-state prog state) x0
 )

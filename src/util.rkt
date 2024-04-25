@@ -62,3 +62,18 @@
     (extract 7 0 vec)
 )
 
+(define (TO_INT vec)
+    ; Convert an n-bit bit-vector
+    ; to an integer.
+    (bitvector->integer vec)
+)
+
+(define (TO_UINT vec)
+    ; Convert a 16-bit bit-vector to an unsigned integer.
+    (bitvector->natural vec)
+)
+
+(define (TO_BV16 int)
+    ; Convert an integer to a 16-bit bit-vector.
+    (integer->bitvector int 16)
+)

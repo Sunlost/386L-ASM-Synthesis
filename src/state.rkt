@@ -383,6 +383,46 @@
     (lambda (r) (if (equal? loc r) val (state r)))
 )
 
+; ----------------------------------------------------------------------------------------------- ;
+; ----------------------------------------- PROGRAMS -------------------------------------------- ;
+; ----------------------------------------------------------------------------------------------- ;
+
+(define (get-instr prog pc)
+    ; Get the instruction which is referenced by the PC register.
+    ;
+    ; Parameters:
+    ;     pc   : The machine's program counter (as a 16-bit bit-vector)
+    ;     prog : The list of instructions (as a vanilla list)
+    ;
+    ; Returns:
+    ;     instr : The instruction at the memory location pointed to by PC.
+    ;             If the PC goes out of bounds, return HLT.
+    ;
+    ; This function works by converting the bitvector PC into 
+    ; an integer list index. Our state assumes that PCs are
+    ; four bytes apart. So, we do the following:
+    ;
+    ; 1. Cast bitvector PC to an unsigned integer
+    ; 2. Divide by 4 to get the index
+    ; 3. Return the instruction at that index
+
+    (let ([index (/ (bitvector->natural pc) 4)])
+
+        ; (displayln (format "[DEBUG][get-instr] pc=~a index=~a" pc index))
+        (if
+            ; IF  : Index is within bounds
+            (and
+                (>= index 0)
+                (<  index (length prog))
+            )
+            ; THEN : Return the instruction at that index
+            (list-ref prog index)
+            ; ELSE : Return HLT
+            HLT
+        )
+    ) ; /let
+
+)
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; --------------------------------------- CONSTRUCTS -------------------------------------------- ;
@@ -446,12 +486,15 @@
 
 ; Define intial state and some other useful functions.
 
+; Rosette uses r0 as the input to the program
+(define-symbolic input_r0 reg_val?)
+
 (define initial-state
     ; Set the initial state of the state map.
     ;
     ; The following values are set by default:
     ;    - x0 - x7     : (val 0)     (16b)
-    ;    - PC          : (val 2000)  (16b)
+    ;    - PC          : (val 0)     (16b)
     ;    - COND_CODES  : Z           ( 3b)
     ;    - Elswehere   : (mem_val 0) ( 8b)
 
@@ -466,7 +509,7 @@
         (lambda (r) (mem_val 0))
 
         ; Set general-purpose registers
-        x0 (val 0))
+        x0 input_r0) ; For Rosette, assume input_r0 contains the input already
         x1 (val 0))
         x2 (val 0))
         x3 (val 0))
@@ -476,7 +519,7 @@
         x7 (val 0))
 
         ; Set PC
-        (addr 2000))
+        (val 0))
 
         ; Set condition code
         3_Z_True)

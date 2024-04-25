@@ -30,7 +30,7 @@
     ;     x5 = 1008
     ;     x6 = 0
     ;     x7 = 14
-    ;     PC = 2000
+    ;     PC = 0
     ; - Memory:
     ;     MEM[1000] = 32
     ;     MEM[1008] = 0
@@ -64,8 +64,8 @@
     x6 (val 0)) 
     x7 (val 14)) 
 
-    ; PC     : instruction memory begins at addr 2000
-    (addr 2000)) 
+    ; PC
+    (val 0)) 
 
     ; Memory : data memory begins at addr 1000
     (addr 1000) (mem_val 32)) 

@@ -1,7 +1,7 @@
 #lang rosette/safe
 
 (require rackunit (only-in racket for/list))
-(require "../src/isa/lc3b.rkt" "../src/isa/riscv.rkt" "../src/state.rkt" "../src/rosette.rkt")
+(require "common.rkt" "../src/isa/lc3b.rkt" "../src/isa/riscv.rkt" "../src/state.rkt" "../src/rosette.rkt")
 
 ; ----------------------------------------------------------------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
@@ -13,18 +13,18 @@
 
 (define lc3b-prog-1
     (list
-        (3_ADD     x1 x2 x0)     ; 2000
-        (3_AND     x1 x2 x2)     ; 2004
-        (3_BR_P    (imm11 6))    ; 2008
-        (3_JSR     (imm11 4))    ; 2012
-        (3_LSHF x3 (imm4  1) x4) ; 2016
-        HLT                      ; 2020
+        (3_ADD     x0 x1 x2)     ;  0
+        (3_AND     x1 x2 x2)     ;  4
+        (3_BR_P    (imm11 6))    ;  8
+        (3_JSR     (imm11 4))    ; 12
+        (3_LSHF x3 (imm4  1) x4) ; 16
+        HLT                      ; 20
     )
 )
 
 ; TODO: Fix this! It's enlarging forever.
 (define program-one-riscv
-    (rosette-compile "lc3b" "riscv" lc3b-prog-1)
+    (rosette-compile "lc3b" "riscv" lc3b-prog-1 test-state-1)
 )
 
 ; Print the new program

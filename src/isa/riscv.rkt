@@ -266,34 +266,38 @@
 ; ------------------------------------- PROGRAM EVALUATION -------------------------------------- ;
 ; ----------------------------------------------------------------------------------------------- ;
 
-(define (eval-riscv-prog-state state)
-    ; Wrapper for eval-riscv-prog
+(define (eval-riscv-state prog state)
+    ; Evaluate a RISC-V system starting from a state.
     ;
     ; Parameters:
+    ;     prog   : List of RISC-V instructions.
     ;     state  : Current state of the RISC-V machine.
     ;
     ; Returns:
     ;     state' : The final state of the RISC-V machine
     ;              after running the program.
-    (if
-        ; IF: the instr at MEM[PC] is HLT
-        (equal? (state (state PC)) HLT)
-        ; THEN: we halted, return current state
-        state
-        ; ELSE: we have an instr to run, recurse
-        (eval-riscv-prog-state (eval-riscv-instr (state (state PC)) state))
-    )
+
+    (let ([instr (get-instr prog (state PC))])
+        (if
+            ; IF: the instr at MEM[PC] is HLT
+            (equal? instr HLT)
+            ; THEN: we halted, return current state
+            state
+            ; ELSE: we have an instr to run, recurse
+            (eval-riscv-state prog (eval-riscv-instr instr state))
+        ) ; /if
+    )     ; /let
 )
 
-(define (eval-riscv-prog state)
-    ; Evaluate a full RISC-V program using our syntax and semantics.
+(define (eval-riscv-prog prog state)
+    ; Evaluate a RISC-V program.
     ;
     ; Parameters:
-    ;     state  : Initial state of the RISC-V machine.
+    ;     prog   : List of RISC-V instructions.
     ;
     ; Returns:
     ;     R[0]   : The return value from the program,
     ;              stored in R[0].
 
-    (eval-riscv-prog-state state) x0
+    (eval-riscv-prog prog state) x0
 )
