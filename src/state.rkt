@@ -28,6 +28,8 @@
     ;     1. Location must be of type <addr> (16-bit bit-vector)
     ;     2. Location must NOT be to one of the registers x0 - x7, PC, or COND_CODE.
 
+    #t
+
     ; (and
     ;     ; type check
     ;     (bv? loc)
@@ -52,8 +54,6 @@
     ;         ) ; /or
     ;     ) ; /not
     ; )
-
-    #t
 )
 
 (define (valid-memory-val val)
@@ -69,6 +69,8 @@
     ; Rules:
     ;    1. Value must be of type <mem_val> (8-bit bit vector)
 
+    #t
+
     ; (and
     ;     ; type check
     ;     (or
@@ -82,8 +84,6 @@
     ;         )
     ;     ) ; /or
     ; )     ; /and
-
-    #t
 )
 
 (define (valid-register-loc loc)
@@ -100,7 +100,7 @@
     ;     1. Location must be of type <addr> (16-bit bit-vector)
     ;     2. Location must be to one of the general-purpose registers x0 - x7
 
-    ; (displayln (format "[DEBUG][valid-register-loc] loc=~a" loc))
+    #t
 
     ; (and
     ;     ; type check
@@ -122,8 +122,6 @@
     ;         (equal? loc x7)
     ;     )
     ; )
-
-    #t
 )
 
 (define (valid-register-val val)
@@ -139,6 +137,8 @@
     ; Rules:
     ;     1. Value must be of type <val> (16-bit bit-vector)
 
+    #t
+
     ; (and
     ;     ; type check
     ;     (bv? val)
@@ -148,8 +148,6 @@
     ;         (length (bitvector->bits (reg_val 0)))
     ;     )
     ; )
-
-    #t
 )
 
 (define (valid-pc-val val)
@@ -165,6 +163,8 @@
     ; Rules:
     ;     1. Value must be of type <addr> (16-bit bit-vector)
 
+    #t
+
     ; (and
     ;     ; type check
     ;     (bv? val)
@@ -174,8 +174,6 @@
     ;         (length (bitvector->bits (addr 0)))
     ;     )
     ; )
-
-    #t
 )
 
 (define (set-memory state loc val)
@@ -187,8 +185,11 @@
     ;     val    : The value to set the memory address to
     ;
     ; Returns:
-    ;     state' : The updated state mapping function, with
-    ;              M[loc] = val, if loc is a valid location.
+    ;     state' : The updated state mapping function, with:
+    ;         - Mem[loc] <- val (if loc is valid location)
+    ;
+    ; Note: This doesn't update the PC. You'll have to do that
+    ;       separately!
 
     (set-state state loc val)
 
@@ -216,10 +217,11 @@
     ;     state'   : updated state with updated condition codes
     ;
     ; Exactly one condition code {N, Z, P} is active at any time.
-    (let ([ new-state (set-register state loc val) ])
-        (cond [ (bveq  (state loc) (bv 0 16)) (set-state new-state COND_CODES Z_True) ]
-              [ (bvsgt (state loc) (bv 0 16)) (set-state new-state COND_CODES P_True) ]
-              [ else                          (set-state new-state COND_CODES N_True) ]
+
+    (let ([ new_state (set-register state loc val) ])
+        (cond [ (bveq  (state loc) (bv 0 16)) (set-state new_state COND_CODES Z_True) ]
+              [ (bvsgt (state loc) (bv 0 16)) (set-state new_state COND_CODES P_True) ]
+              [ else                          (set-state new_state COND_CODES N_True) ]
         ) ; /cond
     ) ; /let
 )
@@ -233,15 +235,18 @@
     ;     val    : The value to set the register to
     ;
     ; Returns:
-    ;     state' : The updated state mapping function, with
-    ;              R[loc] = val, if loc is a valid location.
+    ;     state' : The updated state mapping function, with:
+    ;         - R[loc] <- val (if loc is valid location)
+    ;         - PC     <- PC + 4
     ;
     ; Notes:
     ;     This function only supports setting x0 - x7.
-    ;     Setting the PC and condition codes should
-    ;     be done using their respective functions below.
 
-    (set-state state loc val)
+    ; (displayln (format "[DEBUG][set-register] loc ~a old_val ~a new_val ~a" loc (state loc) val))
+    (set-pc
+        (set-state state loc val)
+        (bvadd (state PC) (reg_val 4))
+    )
 
     ; (if
     ;     ; IF  : Loc and value are valid as a register number / value
@@ -263,6 +268,9 @@
     ; Returns:
     ;     state' : The updated state mapping function, with
     ;              PC = val.
+    ; (displayln (format "[DEBUG][set-pc      ] loc PC old_val ~a new_val ~a" (bitvector->natural (state PC)) (bitvector->natural val)))
+
+    (set-state state PC val)
 
     ; (if
     ;     ; IF  : val is a valid PC
@@ -272,8 +280,6 @@
     ;     ; ELSE : Return current state function
     ;     #f
     ; )
-
-    (set-state state PC val)
 )
 
 (define (set-cc state val)
@@ -422,8 +428,8 @@
     ; for PC
     (set-pc
     ; for 8 general-purpose registers
-    (set-register (set-register (set-register (set-register (set-register (set-register
-    (set-register (set-register
+    (set-state (set-state (set-state (set-state (set-state (set-state
+    (set-state (set-state
 
         ; Initial state : Map all values to <mem_val> 0
         (lambda (r) (mem_val 0))

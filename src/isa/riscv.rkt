@@ -79,8 +79,6 @@
     ;     - The condition codes
     ;     - The program counter
 
-    (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
-    (set-pc ; sets PC to new_pc after current instruction has been run
     (destruct instr
 
     ;; ARITHMETIC
@@ -118,98 +116,94 @@
 
 
     ;; BRANCH (w/ COND)
-    [   (5_BEQ src1 src2 imm12)      ; branch if MEM[src1] == MEM[src2]
-        (begin
-            (if
-                ; IF: MEM[src1] == MEM[src2]
-                (bveq (state src1) (state src2))
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BEQ : Branch If Equal
+        (5_BEQ src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state src1) (state src2)) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
-    [   (5_BNE src1 src2 imm12)      ; branch if MEM[src1] != MEM[src2]
-        (begin
-            (if
-                ; IF: MEM[src1] != MEM[src2]
-                (equal? (bveq (state src1) (state src2)) false)
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BNE : Branch If Not Equal
+        (5_BNE src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (not (bveq (state src1) (state src2))) (set-pc state taken_pc) ]
+                  [ else                                   (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
-    [   (5_BLT src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2]
-        (begin
-            (if
-                ; IF: MEM[src1] < MEM[src2]
-                (bvslt (state src1) (state src2))
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BLT : Branch If Less Than (Signed)
+        (5_BLT src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bvslt (state src1) (state src2)) (set-pc state taken_pc) ]
+                  [ else                              (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
-    [   (5_BGE src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2]
-        (begin
-            (if
-                ; IF: MEM[src1] >= MEM[src2]
-                (bvsge (state src1) (state src2))
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BGE : Branch If Greater Than or Equal (Signed)
+        (5_BGE src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bvsge (state src1) (state src2)) (set-pc state taken_pc) ]
+                  [ else                              (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
-    [   (5_BLTU src1 src2 imm12)      ; branch if MEM[src1] < MEM[src2] (both unsigned)
-        (begin
-            (if
-                ; IF: MEM[src1] < MEM[src2]
-                (bvult (state src1) (state src2))
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BLTU : Branch If Less Than (Unsigned)
+        (5_BLTU src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bvult (state src1) (state src2)) (set-pc state taken_pc) ]
+                  [ else                              (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
-    [   (5_BGEU src1 src2 imm12)      ; branch if MEM[src1] >= MEM[src2] (both unsigned)
-        (begin
-            (if
-                ; IF: MEM[src1] >= MEM[src2]
-                (bvuge (state src1) (state src2))
-                ; THEN: take the branch
-                (set! new_pc (bvadd (state PC) (SXT_16 imm12)))
-                ; ELSE: do nothing, return state
-                (void)
-            )
-            (NO_OP state)
-        )   ]
+    [   ; BGEU : Branch If Greater Than or Equal (Unsigned)
+        (5_BGEU src1 src2 imm12)
+        (let ([ taken_pc (bvadd (state PC) (SXT_16 imm12)) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bvuge (state src1) (state src2)) (set-pc state taken_pc) ]
+                  [ else                              (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
 
     ;; JUMP
-    [   (5_JAL imm16 dst) ;;; PC + 4 -> dst, imm16 -> PC
-        (begin
-            (set! new_pc imm16)
-            (set-register state dst (bvadd (state PC) (offset 4)))
-        )   ]
+    [   ; JAL : Jump and Link
+        (5_JAL imm16 dst)
+        (let ([ old_pc (bvadd (state PC) (reg_val 4)) ]
+              [ new_pc imm16 ])
+            ; PC <- imm16
+            (set-pc
+                ; dst <- PC + 4
+                (set-register state dst old_pc)
+                new_pc
+            )
+        )
+    ]
 
-    [   (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
-        (begin
-            (set! new_pc (bvand (bvadd (state src1) (SXT_16 imm12)) (bvnot (bv 1 16))))
-            (set-register state dst (bvadd (state PC) (offset 4)))
-        )    ]
+    [   ; JALR : Jump and Link Register
+        (5_JALR src1 imm12 dst) ;;; PC + 4 -> dst, (src1 + SXT(imm12)) & ~1 -> PC
+        (let ([ old_pc (bvadd (state PC) (reg_val 4)) ]
+              [ new_pc (bvand (bvadd (state src1) (SXT_16 imm12)) (reg_val -1)) ])
+            ; PC <- (src1 + SXT(imm12)) & ~1
+            (set-pc
+                ; dst <- PC + 4
+                (set-register state dst old_pc)
+                new_pc
+            )
 
+        )
+    ]
 
     ;; LOAD
     [   ; LB   : Load Byte
@@ -230,7 +224,6 @@
         )
     ]
 
-
     ;; SHIFT
     [   ; SLLI : Shift Left Logical Immediate
         (5_SLLI src1 imm4 dst)
@@ -244,31 +237,46 @@
         (5_SRAI src1 imm4 dst)
         (set-register state dst (bvashr (state src1 (SXT_16 imm4))))   ]
 
-
     ;; STORE
     [
         ; SB    : Store Byte
         (5_SB src1 src2 imm5) ;;; src2[7:0] -> MEM[src1 + SXT(imm5)][7:0]
-        (let* ([ addr (bvadd (state src1) (SXT_16 imm5)) ]
-               [ data (GET_LOW8 (state src2)) ])
-            (set-memory state addr data)
-        )
+        (let* ([ addr    (bvadd (state src1) (SXT_16 imm5)) ]
+               [ data    (GET_LOW8 (state src2)) ]
+               [ next_pc (bvadd (state PC) (reg_val 4)) ])
+            (set-pc
+                (set-memory
+                    state
+                    addr
+                    data
+                ) ; /set-memory
+                next_pc
+            ) ; /set-pc
+        ) ; /let
     ]
 
     [   ; SH    : Store Halfword
         (5_SH src1 src2 imm5) ;;; src2[15:0] -> MEM[src1 + SXT(imm5)][15:0]
-        (let* ([ addr_low  (bvadd     (state src1) (SXT_16 imm5))]
-               [ addr_high (bvadd     (addr_low) (addr 1))]
-               [ data_low  (GET_LOW8  (state src2))]
-               [ data_high (GET_HIGH8 (state src2))])
-            (set-memory state addr_low  data_low)
-            (set-memory state addr_high data_high)
-        );
+        (let* ([ addr_low  (bvadd     (state src1) (SXT_16 imm5)) ]
+               [ addr_high (bvadd     (addr_low) (addr 1)) ]
+               [ data_low  (GET_LOW8  (state src2)) ]
+               [ data_high (GET_HIGH8 (state src2)) ]
+               [ next_pc   (bvadd (state PC) (reg_val 4)) ])
+            (set-pc
+                (set-memory
+                    (set-memory
+                        state
+                        addr_high
+                        data_high
+                    ) ; /set-memory
+                    addr_low
+                    data_low
+                ) ; /set-memory
+                next_pc
+            ) ; /set-pc
+        ) ; /let
     ]
-
-    )       ; /destruct
-    new_pc) ; /set-pc
-    )       ; /let
+    ) ; /destruct
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
@@ -295,17 +303,17 @@
         (5_ANDI src1  imm5   dst)
         (5_XOR  src1  src2   dst)
         (5_XORI src1  imm5   dst)
-        ; ;; BRANCH
+        ;; BRANCH
         ; (5_BEQ  src1  src2 imm12)
         ; (5_BNE  src1  src2 imm12)
         ; (5_BLT  src1  src2 imm12)
         ; (5_BGE  src1  src2 imm12)
         ; (5_BLTU src1  src2 imm12)
         ; (5_BGEU src1  src2 imm12)
-        ; ;; JUMP
+        ;; JUMP
         ; (5_JAL       imm16   dst)
         ; (5_JALR src1 imm12   dst)
-        ; ;; LOAD
+        ;; LOAD
         (5_LB   src1 imm12   dst)
         (5_LH   src1 imm12   dst)
         ; ;; SHIFT

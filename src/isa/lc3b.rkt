@@ -47,7 +47,7 @@
 (struct 3_BR_NP  (           imm9) #:transparent)
 (struct 3_BR_ZP  (           imm9) #:transparent)
 (struct 3_BR_NZ  (           imm9) #:transparent)
-(struct 3_BR_NZP (           imm9)  #:transparent)
+(struct 3_BR_NZP (           imm9) #:transparent)
 ;; JUMP
 (struct 3_JMP    (           src1) #:transparent) ;;; src1 -> PC
 (struct 3_RET    (               ) #:transparent) ;;; R7 -> PC
@@ -89,8 +89,6 @@
     ;     - The program counter
     ; (displayln (format "[DEBUG][eval-lc3b-instr] Before x0: ~a" (state x0)))
 
-    (let ((new_pc (bvadd (state PC) (offset 4)))) ; save sequential instr PC
-    (set-pc ; sets PC to new_pc after current instruction has been run
     (destruct instr
 
     ;; ARITHMETIC
@@ -131,130 +129,130 @@
         (set-register-cc state dst (bvxor (state src1) (SXT_16 imm5)))
     ]
 
-
     ;; BRANCH (w/ COND)
-    [   (3_BR imm9)         ; unconditionally branch
-        (begin
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            (NO_OP state)
-        )   ]
-
-    [   (3_BR_N imm9)       ; branch if (N = 1)
-        (begin
-            (if
-                ; IF: (N = 1)
-                (bveq (extract 2 2 (state COND_CODES)) (bv 1 1))
-                ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BR : Branch (Unconditional)
+        (3_BR imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) N_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) Z_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) P_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_Z imm9)       ; branch if (Z = 1)
-        (begin
-            (if
-                ; IF: (Z = 1)
-                (bveq (extract 1 1 (state COND_CODES)) (bv 1 1))
-                ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BRn : Branch if N
+        (3_BR_N imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) N_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_P imm9)       ; branch if (P = 1)
-        (begin
-            (if
-                ; IF: (P = 1)
-                (bveq (extract 0 0 (state COND_CODES)) (bv 1 1))
-                ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BRz : Branch if Z
+        (3_BR_Z imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) Z_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_NP imm9)      ; branch if (N = 1) OR (P = 1), equiv to (Z = 0)
-        (begin
-            (if
-                ; IF: (Z = 0)
-                (bveq (extract 1 1 (state COND_CODES)) (bv 0 1))
-                ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BRp : Branch if P
+        (3_BR_P imm9)       ; branch if (P = 1)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) P_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_ZP imm9)      ; branch if (Z = 1) OR (P = 1), equiv to (N = 0)
-        (begin
-            (if
-                ; IF: (N = 0)
-                (bveq (extract 2 2 (state COND_CODES)) (bv 0 1))
-                ; THEN: branch
-                (set! new_pc (+ (state PC) (TO_INT (L_SH_1 (SXT_16 imm9)))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BRnp : Branch if N or P
+        (3_BR_NP imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) N_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) P_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_NZ imm9)      ; branch if (N = 1) OR (Z = 1), equiv to (P = 0)
-        (begin
-            (if
-                ; IF: (P = 0)
-                (bveq (extract 0 0 (state COND_CODES)) (bv 0 1))
-                ; THEN: branch
-                (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-                ; ELSE: do nothing, return current state
-                (void)
-            ) ; /if
-            (NO_OP state)
-        )     ; /begin
+    [   ; BRzp : Branch if Z or P
+        (3_BR_ZP imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) Z_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) P_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
     ]
 
-    [   (3_BR_NZP imm9)     ; branch if (N = 1) OR (Z = 1) OR (P = 1) ... so always branch.
-        (begin
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))))
-            (NO_OP state)
-        )   ]
+    [   ; BRnz : Branch if N or Z
+        (3_BR_NZ imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) N_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) Z_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
+    [   ; BRnzp : Branch (Unconditional)
+        (3_BR_NZP imm9)
+        (let ([ taken_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm9))) ]
+              [ next_pc  (bvadd (state PC) (reg_val 4)) ])
+            (cond [ (bveq (state COND_CODES) N_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) Z_True) (set-pc state taken_pc) ]
+                  [ (bveq (state COND_CODES) P_True) (set-pc state taken_pc) ]
+                  [ else                             (set-pc state  next_pc) ]
+            ) ; /cond
+        )     ; /let
+    ]
 
     ;; JUMP
-    [   (3_JMP src1)
-        (begin
-            (set! new_pc (state src1))
-            (NO_OP state)
-        )   ]
+    [   ; JMP : Jump
+        (3_JMP src1)
+        (set-pc state (state src1))
+    ]
 
-    [   (3_RET)
-        (begin
-            (set! new_pc (state x7))
-            (NO_OP state)
-        )    ]
+    [   ; RET : Return
+        (3_RET)
+        (set-pc state (state x7))
+    ]
 
-    [   (3_JSR imm11)
-        (begin
-            (set! new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))))
-            (set-register state x7 (bvadd (state PC) (offset 4)))
-        )   ]
+    [   ; JSR : Jump with Status Register Immediate
+        (3_JSR imm11)
+        (let ([ old_pc (bvadd (state PC) (reg_val 4)) ]
+              [ new_pc (bvadd (state PC) (L_SH_1 (SXT_16 imm11))) ])
+            ; PC <- PC + (SXT(imm11) << 1)
+            (set-pc
+                ; R7 <- PC + 4
+                (set-register state x7 old_pc)
+                new_pc
+            ) ; /set-pc
+        )     ; /let
+    ]
 
-    [   (3_JSRR src1)
-        (begin
-            (set! new_pc (state src1))
-            (set-register state x7 (bvadd (state PC) (offset 4)))
-        )   ]
-
+    [   ; JSRR : Jump with Status Register
+        (3_JSRR src1)
+        (let ([ old_pc (bvadd (state PC) (reg_val 4)) ]
+              [ new_pc (state src1) ])
+            ; PC <- src1
+            (set-pc
+                ; R7 <- PC + 4
+                (set-register state x7 old_pc)
+                new_pc
+            ) ; /set-pc
+        )     ; /let
+    ]
 
     ;; LOAD
     [   ; LDB : Load Byte
@@ -297,9 +295,17 @@
     ;; STORE
     [   ; STB : Store Byte
         (3_STB src1 src2 imm6)
-        (let* ([ addr (bvadd    (state src1) (SXT_16 imm6)) ]
-               [ data (GET_LOW8 (state src2)) ])
-            (set-memory state addr data)
+        (let* ([ addr    (bvadd    (state src1) (SXT_16 imm6)) ]
+               [ data    (GET_LOW8 (state src2)) ]
+               [ next_pc (bvadd (state PC) (reg_val 4)) ])
+            (set-pc
+                (set-memory
+                    state
+                    addr
+                    data
+                ) ; /set-memory
+                next_pc
+            ) ; /set-pc
         ) ; /let
     ]
 
@@ -308,15 +314,25 @@
         (let* ([ addr_low  (bvadd     (state src1) (L_SH_1 (SXT_16 imm6))) ]
                [ addr_high (bvadd     (addr_low) (addr 1)) ]
                [ data_low  (GET_LOW8  (state src2)) ]
-               [ data_high (GET_HIGH8 (state src2)) ])
-            (set-memory state addr_low  data_low)
-            (set-memory state addr_high data_high)
+               [ data_high (GET_HIGH8 (state src2)) ]
+               [ next_pc   (bvadd (state PC) (reg_val 4)) ])
+            (set-pc
+                (set-memory
+                    (set-memory
+                        state
+                        addr_high
+                        data_high
+                    ) ; /set-memory
+                    state
+                    addr_low
+                    data_low
+                ) ; /set-memory
+                next_pc
+            ) ; /set-pc
         ) ; /let
     ]
 
     )       ; /destruct
-    new_pc) ; /set-pc
-    )       ; /let
 )
 
 ; ----------------------------------------------------------------------------------------------- ;
